@@ -13,7 +13,7 @@
 2. **评级映射**：Easy=5 / Good=4 / Hard=3 / Forget=0
 3. **时间→评级**（考察自动判定，PRD §2.5.2）：正确且 elapsed≤Easy阈值→5；≤Good阈值→4；>Good→3；错误/留空→0
 4. **答案判定**（PRD §2.5.2）：英文=忽略大小写、trim、词组内连续空格折叠后全等；中文=输入包含任一释义（答案按 `[,，;；]` 拆分，trim 后 contains）
-5. **今日词表生成**（PRD §2.2.2）：新词（三面全无记录，按添加顺序，`min(dailyNewWordCount, 剩余未学)`）+ 到期复习词（任一面 `nextReviewTime<=now`）+ 缺面补齐（有记录且有缺面，按最近评级时间最旧优先，≤facetCatchUpQuota，0=关闭），去重
+5. **今日词表生成**（PRD §2.2.2）：新词（三面全无记录，按添加顺序，`min(dailyNewWordCount, 剩余未学)`）+ 复习词（任一面 `nextReviewTime<=now`）+ 补查（有记录且有缺面，按最近评级时间最旧优先，≤facetCatchUpQuota，0=关闭；旧称「缺面补齐」），去重
 6. **工作集过滤**（PRD §2.4.1）：模式×考核面 → 词 ∈ 今日词表 且（该面缺记录 或 到期）
 7. **混合方向分配**（PRD §2.4.4）：可评方向（缺/到期）中随机，单可评方向则固定
 8. **接口定义**：`WordRepository` / `LearningRecordRepository` / `SettingsRepository` / `StudyLogRepository` / `TtsClient` / `AudioPlayer`（仅接口 + Fake 实现，真实实现分属 ISSUE-002/008）
