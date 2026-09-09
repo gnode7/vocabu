@@ -1,0 +1,37 @@
+CREATE TABLE appSettings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    dailyNewWordCount INTEGER NOT NULL DEFAULT 20,
+    facetCatchUpQuota INTEGER NOT NULL DEFAULT 5,
+    memorizeDisplayCount INTEGER NOT NULL DEFAULT 10,
+    autoPlayOnSelect INTEGER NOT NULL DEFAULT 0,
+    wordPlayPronunciation INTEGER NOT NULL DEFAULT 1,
+    wordPlaySpelling INTEGER NOT NULL DEFAULT 1,
+    phrasePlayPronunciation INTEGER NOT NULL DEFAULT 1,
+    phrasePlayTranslation INTEGER NOT NULL DEFAULT 1,
+    recallDisplayCount INTEGER NOT NULL DEFAULT 10,
+    recallEn2ZhWordPlaySpelling INTEGER NOT NULL DEFAULT 1,
+    recallEn2ZhPhrasePlayTranslation INTEGER NOT NULL DEFAULT 0,
+    recallZh2EnAutoPlay INTEGER NOT NULL DEFAULT 0,
+    dictationEasyThreshold INTEGER NOT NULL DEFAULT 5,
+    dictationGoodThreshold INTEGER NOT NULL DEFAULT 10,
+    ttsService TEXT NOT NULL DEFAULT 'youdao'
+);
+
+selectSettings:
+SELECT * FROM appSettings WHERE id = 1;
+
+insertSettings:
+INSERT INTO appSettings(
+    id, dailyNewWordCount, facetCatchUpQuota, memorizeDisplayCount, autoPlayOnSelect,
+    wordPlayPronunciation, wordPlaySpelling, phrasePlayPronunciation, phrasePlayTranslation,
+    recallDisplayCount, recallEn2ZhWordPlaySpelling, recallEn2ZhPhrasePlayTranslation,
+    recallZh2EnAutoPlay, dictationEasyThreshold, dictationGoodThreshold, ttsService
+) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateSettings:
+UPDATE appSettings SET
+    dailyNewWordCount = ?, facetCatchUpQuota = ?, memorizeDisplayCount = ?, autoPlayOnSelect = ?,
+    wordPlayPronunciation = ?, wordPlaySpelling = ?, phrasePlayPronunciation = ?, phrasePlayTranslation = ?,
+    recallDisplayCount = ?, recallEn2ZhWordPlaySpelling = ?, recallEn2ZhPhrasePlayTranslation = ?,
+    recallZh2EnAutoPlay = ?, dictationEasyThreshold = ?, dictationGoodThreshold = ?, ttsService = ?
+WHERE id = 1;

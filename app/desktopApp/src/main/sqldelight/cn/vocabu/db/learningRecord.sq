@@ -1,0 +1,34 @@
+CREATE TABLE learningRecord (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    wordId INTEGER NOT NULL REFERENCES word(id) ON DELETE CASCADE,
+    facet TEXT NOT NULL,
+    easeFactor REAL NOT NULL,
+    repetitionCount INTEGER NOT NULL,
+    intervalSeconds INTEGER NOT NULL,
+    nextReviewTime INTEGER NOT NULL,
+    lastReviewTime INTEGER,
+    totalReviews INTEGER NOT NULL,
+    totalForgets INTEGER NOT NULL,
+    UNIQUE(wordId, facet)
+);
+
+insertRecord:
+INSERT INTO learningRecord(
+    wordId, facet, easeFactor, repetitionCount, intervalSeconds,
+    nextReviewTime, lastReviewTime, totalReviews, totalForgets
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateRecord:
+UPDATE learningRecord
+SET easeFactor = ?, repetitionCount = ?, intervalSeconds = ?,
+    nextReviewTime = ?, lastReviewTime = ?, totalReviews = ?, totalForgets = ?
+WHERE wordId = ? AND facet = ?;
+
+selectRecord:
+SELECT * FROM learningRecord WHERE wordId = ? AND facet = ?;
+
+selectRecordsByWordId:
+SELECT * FROM learningRecord WHERE wordId = ?;
+
+deleteRecordsByWordId:
+DELETE FROM learningRecord WHERE wordId = ?;

@@ -1,0 +1,39 @@
+CREATE TABLE word (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    isPhrase INTEGER NOT NULL,
+    phonetic TEXT,
+    pos TEXT,
+    translation TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER NOT NULL
+);
+
+insertWord:
+INSERT INTO word(text, isPhrase, phonetic, pos, translation, createdAt, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+selectLastInsertId:
+SELECT last_insert_rowid();
+
+updateWord:
+UPDATE word
+SET text = ?, isPhrase = ?, phonetic = ?, pos = ?, translation = ?, updatedAt = ?
+WHERE id = ?;
+
+deleteWord:
+DELETE FROM word WHERE id = ?;
+
+selectWordById:
+SELECT * FROM word WHERE id = ?;
+
+selectAllWords:
+SELECT * FROM word ORDER BY id;
+
+selectWordByText:
+SELECT * FROM word WHERE text = ? COLLATE NOCASE LIMIT 1;
+
+searchWords:
+SELECT * FROM word
+WHERE text LIKE ? OR translation LIKE ?
+ORDER BY id;
