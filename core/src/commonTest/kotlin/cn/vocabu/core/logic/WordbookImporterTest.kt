@@ -31,25 +31,51 @@ class WordbookImporterTest {
         assertEquals("apple", all[0].text)
         assertTrue(!all[0].isPhrase)         // apple 是单词
         assertTrue(all[1].isPhrase)          // look up 是词组
-        assertEquals(null, all[1].pos)       // 词组 pos 强制 null（PRD §5.1）
+        assertEquals("", all[1].pos)         // 词组 pos 归一化为空串（ADR 0007）
         assertEquals(now, all[0].createdAt)  // createdAt/updatedAt = now
     }
 
     @Test
-    fun `重复词大小写不敏感跳过且不算错误`() {
+    fun `同text异pos共存 归一化后同键跳过`() {
         val repo = InMemoryWordRepository()
-        repo.add(cn.vocabu.core.model.Word.of("Apple", null, null, "苹果", now, now))
         val importer = WordbookImporter(repo)
 
         val report = importer.import(
-            rows(listOf("apple", "n.", "苹果"), listOf("APPLE", null, "苹果"), listOf("banana", null, "香蕉")),
+            rows(
+                listOf("record", "n.", "记录"),
+                listOf("RECORD", "V", "录制"),   // 异 pos → 共存
+                listOf("record", " N. ", "又一条记录"), // 归一化 (record,n) 已存在 → 跳过
+            ),
             now = now,
         )
 
-        assertEquals(1, report.successCount)
-        assertEquals(listOf("apple", "APPLE"), report.duplicatedTexts)
+        assertEquals(2, report.successCount)
+        assertEquals(1, report.duplicatedCount)
+        assertEquals(listOf("record"), report.duplicatedTexts)
+        assertEquals(2, repo.getAll().size)
+        assertEquals("n", repo.getAll()[0].pos) // 归一化存储
+        assertEquals("v", repo.getAll()[1].pos)
+    }
+
+    @Test
+    fun `重复词归一化同键跳过且不算错误`() {
+        val repo = InMemoryWordRepository()
+        repo.add(cn.vocabu.core.model.Word.of("Apple", null, null, "苹果", now, now)) // (apple, "")
+        val importer = WordbookImporter(repo)
+
+        val report = importer.import(
+            rows(
+                listOf("apple", null, "苹果"),        // 归一化同键 (apple,"") → 跳过
+                listOf("APPLE", "n.", "水果"),        // (apple,n) 异 pos → 共存
+                listOf("banana", null, "香蕉"),
+            ),
+            now = now,
+        )
+
+        assertEquals(2, report.successCount)
+        assertEquals(listOf("apple"), report.duplicatedTexts)
         assertEquals(0, report.failures.size)
-        assertEquals(2, repo.getAll().size) // Apple + banana
+        assertEquals(3, repo.getAll().size) // Apple(空词性) + APPLE/n + banana
     }
 
     @Test

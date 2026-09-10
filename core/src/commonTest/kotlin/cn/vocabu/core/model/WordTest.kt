@@ -17,18 +17,28 @@ class WordTest {
     }
 
     @Test
-    fun `词组的pos强制为null PRD 5_1`() {
+    fun `词组的pos归一化为空串 ADR0007`() {
         val phrase = Word.of("look up", null, "v.", "查阅", ts(), ts())
         assertTrue(phrase.isPhrase)
-        assertEquals(null, phrase.pos)
+        assertEquals("", phrase.pos)
     }
 
     @Test
-    fun `单词保留pos`() {
-        val word = Word.of("apple", " ˈæpl ", " n. ", "苹果", ts(), ts())
+    fun `单词保留pos且归一化 trim小写去尾点`() {
+        val word = Word.of("apple", " ˈæpl ", " N. ", "苹果", ts(), ts())
         assertFalse(word.isPhrase)
-        assertEquals("n.", word.pos)
+        assertEquals("n", word.pos)
         assertEquals("ˈæpl", word.phonetic)
+    }
+
+    @Test
+    fun `词性归一化单点收敛 trim小写去尾点`() {
+        assertEquals("n", Word.normalizePos(" N. "))
+        assertEquals("n", Word.normalizePos("n "))
+        assertEquals("n", Word.normalizePos("N"))
+        assertEquals("n", Word.normalizePos("n."))
+        assertEquals("", Word.normalizePos(null))
+        assertEquals("", Word.normalizePos(""))
     }
 
     private fun ts() = Instant.fromEpochSeconds(0)

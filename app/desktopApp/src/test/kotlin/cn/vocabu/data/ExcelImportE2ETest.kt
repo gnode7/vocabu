@@ -57,9 +57,9 @@ class ExcelImportE2ETest {
 
         val saved = wordRepo.getAll()
         assertEquals(listOf("apple", "look up"), saved.map { it.text })
-        assertEquals("n.", saved[0].pos)
+        assertEquals("n", saved[0].pos) // 归一化存储（trim/小写/去尾点，ADR 0007）
         assertEquals("ˈæpl", saved[0].phonetic)
-        assertEquals(null, saved[1].pos) // 词组 pos 强制 null
+        assertEquals("", saved[1].pos) // 词组 pos 归一化为空串
 
         file.delete()
     }

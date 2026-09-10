@@ -17,19 +17,19 @@ class WordbookImporter(private val words: WordRepository) {
         for (outcome in ImportParser.parse(rows)) {
             when (outcome) {
                 is ImportParser.RowOutcome.Entry -> {
-                    if (words.findByText(outcome.text) != null) {
-                        duplicatedTexts += outcome.text
+                    val word = Word.of(
+                        text = outcome.text,
+                        phonetic = outcome.phonetic,
+                        pos = outcome.pos,
+                        translation = outcome.translation,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                    // 归一化 (text, pos) 联合判重（ADR 0007）：同键跳过不算错误，异 pos 共存
+                    if (words.findByTextAndPos(word.text, word.pos) != null) {
+                        duplicatedTexts += word.text
                     } else {
-                        words.add(
-                            Word.of(
-                                text = outcome.text,
-                                phonetic = outcome.phonetic,
-                                pos = outcome.pos,
-                                translation = outcome.translation,
-                                createdAt = now,
-                                updatedAt = now,
-                            ),
-                        )
+                        words.add(word)
                         successCount++
                     }
                 }

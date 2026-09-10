@@ -21,8 +21,8 @@ interface WordRepository {
     /** 全部词条，按添加顺序（id 升序）。 */
     fun getAll(): List<Word>
 
-    /** 按英文文本查找（大小写不敏感），用于重复判定。 */
-    fun findByText(text: String): Word?
+    /** 按词条身份 (text, pos) 查找（两者均归一化后匹配，判重用，ADR 0007）。 */
+    fun findByTextAndPos(text: String, pos: String): Word?
 
     /** 中英文模糊搜索（SQL LIKE 前缀 + 包含，英文不区分大小写）。 */
     fun search(query: String): List<Word>

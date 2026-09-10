@@ -46,8 +46,9 @@ class WordRepositoryImpl(
     override fun getAll(): List<Word> =
         db.wordQueries.selectAllWords().executeAsList().map { it.toDomain() }
 
-    override fun findByText(text: String): Word? =
-        db.wordQueries.selectWordByText(text.trim()).executeAsOneOrNull()?.toDomain()
+    override fun findByTextAndPos(text: String, pos: String): Word? =
+        db.wordQueries.selectWordByTextPos(text.trim(), Word.normalizePos(pos))
+            .executeAsOneOrNull()?.toDomain()
 
     override fun search(query: String): List<Word> {
         val pattern = likePattern(query)

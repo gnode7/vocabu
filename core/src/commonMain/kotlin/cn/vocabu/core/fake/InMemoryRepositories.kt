@@ -10,7 +10,7 @@ import cn.vocabu.core.repo.SettingsRepository
 import cn.vocabu.core.repo.StudyLogRepository
 import cn.vocabu.core.repo.WordRepository
 
-/** 内存版词库仓库：id 自增、text 大小写不敏感查找、搜索为中英文包含匹配。 */
+/** 内存版词库仓库：id 自增、(text,pos) 归一化联合唯一（对齐真实库约束，ADR 0007）、中英文包含搜索。 */
 class InMemoryWordRepository(
     initialWords: List<Word> = emptyList(),
 ) : WordRepository {
@@ -21,7 +21,15 @@ class InMemoryWordRepository(
         initialWords.forEach { add(it) }
     }
 
+    private fun identityKey(text: String, pos: String): Pair<String, String> =
+        text.trim().lowercase() to Word.normalizePos(pos)
+
+    private fun keyExists(key: Pair<String, String>, excludeId: Long = -1): Boolean =
+        words.values.any { it.id != excludeId && identityKey(it.text, it.pos) == key }
+
     override fun add(word: Word): Word {
+        val key = identityKey(word.text, word.pos)
+        require(!keyExists(key)) { "词条已存在: ${word.text}/${word.pos}" }
         val saved = word.copy(id = nextId++)
         words[saved.id] = saved
         return saved
@@ -29,6 +37,9 @@ class InMemoryWordRepository(
 
     override fun update(word: Word) {
         require(words.containsKey(word.id)) { "词条不存在: id=${word.id}" }
+        require(!keyExists(identityKey(word.text, word.pos), excludeId = word.id)) {
+            "词条已存在: ${word.text}/${word.pos}"
+        }
         words[word.id] = word
     }
 
@@ -40,9 +51,9 @@ class InMemoryWordRepository(
 
     override fun getAll(): List<Word> = words.values.toList()
 
-    override fun findByText(text: String): Word? {
-        val target = text.trim()
-        return words.values.firstOrNull { it.text.equals(target, ignoreCase = true) }
+    override fun findByTextAndPos(text: String, pos: String): Word? {
+        val key = identityKey(text, pos)
+        return words.values.firstOrNull { identityKey(it.text, it.pos) == key }
     }
 
     override fun search(query: String): List<Word> {

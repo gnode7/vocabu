@@ -146,24 +146,14 @@ class WordbookViewModel(
         bump()
     }
 
-    /** 新建/编辑保存（PRD §2.1.2）：单词与翻译必填；重复（忽略大小写）拦截。统一经 Word.of 重派生。 */
+    /** 新建/编辑保存（PRD §2.1.2）：单词与翻译必填；按归一化 (text, pos) 联合判重（ADR 0007）。统一经 Word.of 重派生。 */
     fun save(text: String, pos: String, phonetic: String, translation: String) {
         val trimmedText = text.trim()
         if (trimmedText.isEmpty() || translation.isBlank()) {
             message = "请填写英文和中文释义（已保留你输入的内容）"
             return
         }
-        val existing = words.findByText(trimmedText)
         val editingWord = editing
-        val duplicate = when {
-            existing == null -> false
-            editingWord == null || editingWord.id == 0L -> true // 新建且已存在
-            else -> existing.id != editingWord.id // 编辑成另一个已存在的词
-        }
-        if (duplicate) {
-            message = "该词已存在"
-            return
-        }
         val rebuilt = Word.of(
             text = trimmedText,
             phonetic = phonetic,
@@ -173,6 +163,16 @@ class WordbookViewModel(
             updatedAt = now(),
             id = editingWord?.takeIf { it.id != 0L }?.id ?: 0,
         )
+        val existing = words.findByTextAndPos(rebuilt.text, rebuilt.pos)
+        val duplicate = when {
+            existing == null -> false
+            editingWord == null || editingWord.id == 0L -> true // 新建且同键已存在
+            else -> existing.id != editingWord.id // 编辑撞上另一个同键词条
+        }
+        if (duplicate) {
+            message = if (rebuilt.pos.isEmpty()) "该词已存在" else "该词（同词性）已存在"
+            return
+        }
         if (editingWord != null && editingWord.id != 0L) {
             words.update(rebuilt)
         } else {
@@ -210,8 +210,8 @@ class WordbookViewModel(
             .sortedWith(comparator)
     }
 
-    /** 词性筛选候选项（当前词库中出现的全部词性）。 */
-    fun availablePos(): List<String> = words.getAll().mapNotNull { it.pos }.distinct().sorted()
+    /** 词性筛选候选项（当前词库中出现的全部归一化词性，排除空词性）。 */
+    fun availablePos(): List<String> = words.getAll().map { it.pos }.filter { it.isNotEmpty() }.distinct().sorted()
 }
 
 /** 词库管理页（ISSUE-003，按设计稿 prototype.html 对齐）。 */
@@ -337,7 +337,7 @@ private fun WordRow(vm: WordbookViewModel, word: Word) {
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.SemiBold,
         )
-        Text(word.pos ?: "", Modifier.width(56.dp), style = MaterialTheme.typography.bodySmall)
+        Text(word.pos.ifEmpty { "—" }, Modifier.width(56.dp), style = MaterialTheme.typography.bodySmall)
         Text(
             word.phonetic ?: "—",
             Modifier.width(110.dp),
@@ -391,12 +391,12 @@ private fun PosFilterButton(vm: WordbookViewModel) {
 @Composable
 private fun EditDialog(vm: WordbookViewModel, word: Word) {
     var text by remember(word.id) { mutableStateOf(word.text) }
-    var pos by remember(word.id) { mutableStateOf(word.pos ?: "") }
+    var pos by remember(word.id) { mutableStateOf(word.pos) }
     var phonetic by remember(word.id) { mutableStateOf(word.phonetic ?: "") }
     var translation by remember(word.id) { mutableStateOf(word.translation) }
     var posMenuExpanded by remember(word.id) { mutableStateOf(false) }
 
-    // 含空格 → 词组：词性自动忽略（PRD §5.1 词组 pos 强制 null），下拉禁用
+    // 含空格 → 词组：pos 归一化为空串（ADR 0007），下拉禁用
     val isPhrase = text.trim().any { it.isWhitespace() }
 
     AlertDialog(
@@ -423,7 +423,8 @@ private fun EditDialog(vm: WordbookViewModel, word: Word) {
                     POS_OPTIONS.forEach { option ->
                         DropdownMenuItem(
                             text = { Text(option.ifEmpty { "（无）" }) },
-                            onClick = { pos = option; posMenuExpanded = false },
+                            // 选中即归一化存储（单点收敛，ADR 0007）
+                            onClick = { pos = Word.normalizePos(option); posMenuExpanded = false },
                         )
                     }
                 }

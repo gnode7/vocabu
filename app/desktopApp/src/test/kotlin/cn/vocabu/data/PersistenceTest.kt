@@ -99,10 +99,23 @@ class PersistenceTest {
     }
 
     @Test
-    fun `findByText大小写不敏感`() {
-        wordRepo.add(newWord("Apple"))
-        assertEquals("Apple", wordRepo.findByText("apple")?.text)
-        assertEquals("Apple", wordRepo.findByText("  APPLE ")?.text)
+    fun `findByTextAndPos按归一化联合键查找`() {
+        wordRepo.add(newWord("Apple")) // pos 归一化为 n
+
+        assertEquals("Apple", wordRepo.findByTextAndPos("apple", "N.")?.text)
+        assertNull(wordRepo.findByTextAndPos("apple", "v"))
+    }
+
+    @Test
+    fun `同text异pos共存 ADR0007`() {
+        val noun = wordRepo.add(Word.of("record", null, "n.", "记录", ts, ts))
+        val verb = wordRepo.add(Word.of("RECORD", null, "V", "录制", ts, ts))
+
+        assertEquals(2, wordRepo.getAll().size)
+        assertEquals("n", noun.pos)  // 归一化存储
+        assertEquals("v", verb.pos)
+        assertNotNull(wordRepo.findByTextAndPos("record", "n."))
+        assertNotNull(wordRepo.findByTextAndPos("record", "v"))
     }
 
     // ---- 学习记录：UNIQUE(wordId, facet) 与级联删除 ----
@@ -204,7 +217,7 @@ class PersistenceTest {
         WordRepositoryImpl(first).add(newWord("apple"))
 
         val reopened = VocabuDatabaseFactory.createAt(dbFile) // 已存在的库不再执行建表
-        val loaded = WordRepositoryImpl(reopened).findByText("apple")
+        val loaded = WordRepositoryImpl(reopened).findByTextAndPos("apple", "n")
         assertNotNull(loaded)
 
         val fileNames = Files.walk(dir).use { stream -> stream.map { it.fileName.toString() }.toList() }

@@ -5,23 +5,15 @@ import cn.vocabu.core.model.LearningRecord
 import cn.vocabu.core.model.Word
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 class InMemoryRepositoriesTest {
 
     private val ts = Instant.fromEpochSeconds(0)
-
-    @Test
-    fun `词库按大小写不敏感查找文本`() {
-        val repo = InMemoryWordRepository()
-        repo.add(Word.of("Apple", null, "n.", "苹果", ts, ts))
-
-        assertNotNull(repo.findByText("apple"))
-        assertNotNull(repo.findByText("APPLE"))
-        assertNull(repo.findByText("banana"))
-    }
 
     @Test
     fun `学习记录按wordId和facet唯一upsert`() {
@@ -34,6 +26,30 @@ class InMemoryRepositoriesTest {
 
         assertEquals(r2, repo.find(1, Facet.EN2ZH))
         assertEquals(1, repo.findAllByWordId(1).size)
+    }
+
+    @Test
+    fun `按归一化text和pos联合查找`() {
+        val repo = InMemoryWordRepository()
+        repo.add(Word.of("Apple", null, "n.", "苹果", ts, ts))
+
+        assertNotNull(repo.findByTextAndPos("apple", "N.")) // 归一化后同键
+        assertNull(repo.findByTextAndPos("apple", "v"))     // 异 pos 无
+        assertNull(repo.findByTextAndPos("banana", "n"))
+    }
+
+    @Test
+    fun `同text异pos共存 同键被拒`() {
+        val repo = InMemoryWordRepository()
+        repo.add(Word.of("record", null, "n.", "记录", ts, ts))
+        repo.add(Word.of("RECORD", null, "v.", "录制", ts, ts)) // 归一化后 (record,n) vs (record,v) → 共存
+
+        assertEquals(2, repo.getAll().size)
+
+        val err = assertFailsWith<IllegalArgumentException> {
+            repo.add(Word.of("record", null, " N ", "再录一次", ts, ts)) // (record,n) 已存在
+        }
+        assertTrue(err.message!!.contains("已存在"))
     }
 
     @Test
