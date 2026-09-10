@@ -666,7 +666,9 @@ MVP 默认使用有道词典 TTS（HTTP 接口，免费，无需 API Key）。
 | newWordsLearned | Int | NOT NULL, DEFAULT 0 | 新学单词数 |
 | wordsReviewed | Int | NOT NULL, DEFAULT 0 | 复习单词数 |
 | sessionTimeSeconds | Long | NOT NULL, DEFAULT 0 | 学习时长（秒） |
-| accuracy | Float | NOT NULL, DEFAULT 0.0 | 正确率 (0.0~1.0)。分母 = **判定数**（听写一次提交计 2 次判定，默写 1 次；与考核面账本粒度一致，Forget = 不正确） |
+| totalJudgments | Int | NOT NULL, DEFAULT 0 | 判定总数累计（正确率分母；听写一次提交 +2，默写 +1） |
+| totalCorrect | Int | NOT NULL, DEFAULT 0 | 判定正确累计（Forget = 不正确） |
+| accuracy | Float | NOT NULL, DEFAULT 0.0 | 正确率 (0.0~1.0)。派生值 = totalCorrect / totalJudgments（分母 0 时为 0.0）；每次判定后随计数一并增量 upsert（提交即落账，见 2.5.2） |
 
 ### 5.5 AppSettings（应用设置）
 
@@ -752,6 +754,7 @@ MVP 默认使用有道词典 TTS（HTTP 接口，免费，无需 API Key）。
 | 18 | 评级进度条**每框一条**：各部分评级展示在各自输入框下方（对应各自考核面账本），移除共用词级条 | 2.5.2 |
 | 19 | 考察会话语义三定（拷问）：**提交即落账**（不等会话结束，中途退出不丢）；**Tab 捕获**仅在可用输入框间循环（批改后焦点仍由系统移交「下一个」按钮）；**答错面正常排期重现**——Forget → 60 秒到期，轮末检查会话内到期面洗牌新轮（词粒度整词重考，不限次数），考察 = 学习的一种；计时明确为「焦点注意力时间」，可切走暂停 | 2.5.1、2.5.2、2.5.3 |
 | 20 | 拷问收尾：中文判定改**对称拆分**（用户输入与答案同规则拆段，每段命中任一释义，支持拼接输入）；考察结束汇总页与通览面状态灯记入 §6.4 后续扩展（MVP 不做） | 2.5.2、6.4 |
+| 21 | DailyStudyLog 增 **totalJudgments / totalCorrect** 两计数列，accuracy 改为派生值——支撑「提交即落账」下的增量维护与判定数口径 | 5.3 |
 
 ### 1.1（2026-09-09，需求对齐评审）
 
