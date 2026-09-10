@@ -3,19 +3,22 @@ package cn.vocabu.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -28,30 +31,49 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import cn.vocabu.core.io.ExcelReader
 import cn.vocabu.core.io.FilePicker
 import cn.vocabu.core.logic.ImportReport
+import cn.vocabu.core.logic.TodayListBuilder
 import cn.vocabu.core.logic.WordbookImporter
 import cn.vocabu.core.model.Word
+import cn.vocabu.core.repo.LearningRecordRepository
+import cn.vocabu.core.repo.SettingsRepository
 import cn.vocabu.core.repo.WordRepository
 import kotlin.time.Instant
 
 /** 排序方式（PRD §2.1.2：默认字母序，可切换按添加时间）。 */
 enum class WordSortMode { ALPHABETICAL, ADDED_TIME }
 
+/** 添加/编辑弹窗的词性候选项（设计稿 prototype.html）。 */
+private val POS_OPTIONS = listOf("", "n.", "v.", "adj.", "adv.", "prep.", "phr.")
+
 /**
  * 词库管理页状态（ISSUE-003）。同步调用仓库；时间由 [now] 注入保证可测。
  */
 class WordbookViewModel(
     private val words: WordRepository,
+    private val records: LearningRecordRepository,
+    private val settings: SettingsRepository,
     private val importer: WordbookImporter,
     private val excelReader: ExcelReader,
     private val filePicker: FilePicker,
     val now: () -> Instant,
 ) {
-    /** 数据版本号：任何增删改/导入后自增，驱动列表重算。 */
+    /** 数据版本号：任何增删改/导入后自增，驱动列表与计数重算。 */
     var version by mutableStateOf(0)
+        private set
+
+    /** 词库总词数（计数行「共 N 词」）。 */
+    var totalCount by mutableStateOf(0)
+        private set
+
+    /** 今日进入学习的词数（今日词表规模，PRD §2.1.2 计数行）。 */
+    var todayCount by mutableStateOf(0)
         private set
 
     var query by mutableStateOf("")
@@ -74,9 +96,35 @@ class WordbookViewModel(
     var message by mutableStateOf<String?>(null)
         private set
 
+    init {
+        refreshStats()
+    }
+
+    private fun refreshStats() {
+        val allWords = words.getAll()
+        totalCount = allWords.size
+        val recordsByWord = records.findAll().groupBy { it.wordId }
+        val s = settings.get()
+        todayCount = TodayListBuilder.build(
+            allWords,
+            recordsByWord,
+            s.dailyNewWordCount,
+            s.facetCatchUpQuota,
+            now(),
+        ).all.size
+    }
+
+    private fun bump() {
+        version++
+        refreshStats()
+    }
+
     fun clearMessage() {
         message = null
     }
+
+    /** 新建草稿：搜索词带入（设计稿：回车/空态「添加该词条」）。 */
+    fun newDraft(text: String): Word = Word.of(text, null, null, "", now(), now())
 
     fun toggleSelected(id: Long) {
         selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
@@ -95,14 +143,14 @@ class WordbookViewModel(
         pendingDelete.forEach { words.delete(it.id) }
         pendingDelete = emptyList()
         selectedIds = emptySet()
-        version++
+        bump()
     }
 
-    /** 新建/编辑保存（PRD §2.1.2）：单词与翻译必填；重复（忽略大小写）拦截。 */
+    /** 新建/编辑保存（PRD §2.1.2）：单词与翻译必填；重复（忽略大小写）拦截。统一经 Word.of 重派生。 */
     fun save(text: String, pos: String, phonetic: String, translation: String) {
         val trimmedText = text.trim()
         if (trimmedText.isEmpty() || translation.isBlank()) {
-            message = "单词和翻译不能为空"
+            message = "请填写英文和中文释义（已保留你输入的内容）"
             return
         }
         val existing = words.findByText(trimmedText)
@@ -116,30 +164,22 @@ class WordbookViewModel(
             message = "该词已存在"
             return
         }
+        val rebuilt = Word.of(
+            text = trimmedText,
+            phonetic = phonetic,
+            pos = pos,
+            translation = translation,
+            createdAt = editingWord?.takeIf { it.id != 0L }?.createdAt ?: now(),
+            updatedAt = now(),
+            id = editingWord?.takeIf { it.id != 0L }?.id ?: 0,
+        )
         if (editingWord != null && editingWord.id != 0L) {
-            words.update(
-                editingWord.copy(
-                    text = trimmedText,
-                    pos = pos.trim().ifEmpty { null },
-                    phonetic = phonetic.trim().ifEmpty { null },
-                    translation = translation.trim(),
-                    updatedAt = now(),
-                ),
-            )
+            words.update(rebuilt)
         } else {
-            words.add(
-                Word.of(
-                    text = trimmedText,
-                    phonetic = phonetic,
-                    pos = pos,
-                    translation = translation,
-                    createdAt = now(),
-                    updatedAt = now(),
-                ),
-            )
+            words.add(rebuilt)
         }
         editing = null
-        version++
+        bump()
     }
 
     /** 导入：选文件 → 读工作簿 → 解析查重落库 → 报告。取消选择则无动作。 */
@@ -151,7 +191,7 @@ class WordbookViewModel(
             return
         }
         importReport = importer.import(rows, now())
-        version++
+        bump()
     }
 
     fun dismissImportReport() {
@@ -174,7 +214,7 @@ class WordbookViewModel(
     fun availablePos(): List<String> = words.getAll().mapNotNull { it.pos }.distinct().sorted()
 }
 
-/** 词库管理页（ISSUE-003）。 */
+/** 词库管理页（ISSUE-003，按设计稿 prototype.html 对齐）。 */
 @Composable
 fun WordbookScreen(vm: WordbookViewModel) {
     val list = remember(vm.version, vm.query, vm.sortMode, vm.posFilter) { vm.currentList() }
@@ -185,16 +225,31 @@ fun WordbookScreen(vm: WordbookViewModel) {
                 value = vm.query,
                 onValueChange = { vm.query = it },
                 modifier = Modifier.weight(1f),
-                label = { Text("搜索中英文") },
+                placeholder = { Text("搜索英文或中文释义") },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        if (vm.query.isNotBlank()) vm.editing = vm.newDraft(vm.query.trim())
+                    },
+                ),
             )
             SortButton(vm)
             PosFilterButton(vm)
             Button(onClick = { vm.startImport() }) { Text("导入 Excel") }
-            Button(onClick = { vm.editing = Word.of("", null, null, "", vm.now(), vm.now()) }) {
-                Text("添加单词")
-            }
+            Button(onClick = { vm.editing = vm.newDraft("") }) { Text("添加单词") }
         }
+
+        // 计数行（设计稿 wbCount）
+        Text(
+            if (vm.query.isBlank()) {
+                "共 ${vm.totalCount} 词 · 今日 ${vm.todayCount} 词进入学习"
+            } else {
+                "筛选到 ${list.size} 条"
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         if (vm.selectedIds.isNotEmpty()) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -205,10 +260,15 @@ fun WordbookScreen(vm: WordbookViewModel) {
             }
         }
 
-        LazyColumn(Modifier.weight(1f)) {
-            items(list, key = { it.id }) { word ->
-                WordRow(vm, word)
-                HorizontalDivider()
+        if (list.isEmpty()) {
+            EmptyStateCard(vm)
+        } else {
+            TableHeader()
+            LazyColumn(Modifier.weight(1f)) {
+                items(list, key = { it.id }) { word ->
+                    WordRow(vm, word)
+                    HorizontalDivider()
+                }
             }
         }
     }
@@ -226,6 +286,41 @@ fun WordbookScreen(vm: WordbookViewModel) {
     }
 }
 
+/** 列头（设计稿 wb-table thead：英文|词性|音标|中文释义|操作）。 */
+@Composable
+private fun TableHeader() {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Spacer(Modifier.width(48.dp))
+        Text("英文", Modifier.weight(3f), style = MaterialTheme.typography.labelMedium)
+        Text("词性", Modifier.width(56.dp), style = MaterialTheme.typography.labelMedium)
+        Text("音标", Modifier.width(110.dp), style = MaterialTheme.typography.labelMedium)
+        Text("中文释义", Modifier.weight(3f), style = MaterialTheme.typography.labelMedium)
+        Spacer(Modifier.width(96.dp))
+    }
+}
+
+/** 空状态卡（设计稿 wbEmpty：没找到关键词 → 引导添加）。 */
+@Composable
+private fun EmptyStateCard(vm: WordbookViewModel) {
+    val keyword = vm.query.trim()
+    Column(
+        Modifier.fillMaxWidth().padding(vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            if (keyword.isEmpty()) "词库还是空的" else "没有找到「$keyword」",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            "换个关键词试试，或者把它添加进词库。",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(onClick = { vm.editing = vm.newDraft(keyword) }) { Text("添加该词条") }
+    }
+}
+
 @Composable
 private fun WordRow(vm: WordbookViewModel, word: Word) {
     Row(
@@ -236,18 +331,22 @@ private fun WordRow(vm: WordbookViewModel, word: Word) {
             checked = word.id in vm.selectedIds,
             onCheckedChange = { vm.toggleSelected(word.id) },
         )
-        Column(Modifier.weight(3f)) {
-            Text(word.text, style = MaterialTheme.typography.titleMedium)
-            val phonetic = word.phonetic
-            if (phonetic != null) {
-                Text(phonetic, style = MaterialTheme.typography.bodySmall)
-            }
-        }
-        Spacer(Modifier.width(8.dp))
+        Text(
+            word.text,
+            Modifier.weight(3f),
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.SemiBold,
+        )
         Text(word.pos ?: "", Modifier.width(56.dp), style = MaterialTheme.typography.bodySmall)
-        Text(word.translation, Modifier.weight(2f), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            word.phonetic ?: "—",
+            Modifier.width(110.dp),
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace,
+        )
+        Text(word.translation, Modifier.weight(3f), style = MaterialTheme.typography.bodyMedium)
         TextButton(onClick = { vm.editing = word }) { Text("编辑") }
-        TextButton(onClick = { vm.requestDelete(listOf(word)) }) { Text("删除") }
+        TextButton(onClick = { vm.requestDelete(listOf(word)) }) { Text("删除", color = MaterialTheme.colorScheme.error) }
     }
 }
 
@@ -295,34 +394,50 @@ private fun EditDialog(vm: WordbookViewModel, word: Word) {
     var pos by remember(word.id) { mutableStateOf(word.pos ?: "") }
     var phonetic by remember(word.id) { mutableStateOf(word.phonetic ?: "") }
     var translation by remember(word.id) { mutableStateOf(word.translation) }
+    var posMenuExpanded by remember(word.id) { mutableStateOf(false) }
+
+    // 含空格 → 词组：词性自动忽略（PRD §5.1 词组 pos 强制 null），下拉禁用
+    val isPhrase = text.trim().any { it.isWhitespace() }
 
     AlertDialog(
         onDismissRequest = { vm.editing = null },
-        title = { Text(if (word.id == 0L) "添加单词" else "编辑单词") },
+        title = { Text(if (word.id == 0L) "添加单词 / 词组" else "编辑词条") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    label = { Text("单词/词组（必填）") },
+                    label = { Text("英文（必填）") },
+                    placeholder = { Text("如 apple 或 look forward to") },
+                    supportingText = { Text("含空格自动判定为词组") },
                     singleLine = true,
                 )
-                OutlinedTextField(
-                    value = pos,
-                    onValueChange = { pos = it },
-                    label = { Text("词性（选填，词组自动忽略）") },
-                    singleLine = true,
-                )
+                OutlinedButton(
+                    onClick = { posMenuExpanded = true },
+                    enabled = !isPhrase,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (isPhrase) "词组 · 无词性" else if (pos.isEmpty()) "（无）" else pos)
+                }
+                DropdownMenu(expanded = posMenuExpanded, onDismissRequest = { posMenuExpanded = false }) {
+                    POS_OPTIONS.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option.ifEmpty { "（无）" }) },
+                            onClick = { pos = option; posMenuExpanded = false },
+                        )
+                    }
+                }
                 OutlinedTextField(
                     value = phonetic,
                     onValueChange = { phonetic = it },
                     label = { Text("音标（选填）") },
+                    placeholder = { Text("/ˈæpl/") },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = translation,
                     onValueChange = { translation = it },
-                    label = { Text("中文翻译（必填，多个释义用逗号/分号分隔）") },
+                    label = { Text("中文释义（必填，多条用逗号/分号分隔）") },
                 )
             }
         },
@@ -335,10 +450,19 @@ private fun EditDialog(vm: WordbookViewModel, word: Word) {
 
 @Composable
 private fun DeleteConfirmDialog(vm: WordbookViewModel) {
+    val single = vm.pendingDelete.size == 1
     AlertDialog(
         onDismissRequest = { vm.cancelDelete() },
-        title = { Text("删除确认") },
-        text = { Text("确定删除选中的 ${vm.pendingDelete.size} 个单词？此操作不可撤销。") },
+        title = { Text("删除词条") },
+        text = {
+            Text(
+                if (single) {
+                    "确定删除「${vm.pendingDelete[0].text}」吗？其三条考核面学习记录将一并删除，不可恢复。"
+                } else {
+                    "确定删除选中的 ${vm.pendingDelete.size} 个单词？其学习记录将一并删除，不可恢复。"
+                },
+            )
+        },
         confirmButton = {
             Button(onClick = { vm.confirmDelete() }) { Text("删除") }
         },
@@ -350,20 +474,28 @@ private fun DeleteConfirmDialog(vm: WordbookViewModel) {
 private fun ImportReportDialog(vm: WordbookViewModel, report: ImportReport) {
     AlertDialog(
         onDismissRequest = { vm.dismissImportReport() },
-        title = { Text("导入完成") },
+        title = { Text("导入结果") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("成功导入 ${report.successCount} 个")
-                Text(
-                    "跳过重复 ${report.duplicatedCount} 个：${report.duplicatedTexts.take(10).joinToString("、")}${if (report.duplicatedCount > 10) "…" else ""}",
-                )
-                Text("忽略格式错误 ${report.failureCount} 行")
+                Text("成功导入 ${report.successCount} 个 · 重复跳过 ${report.duplicatedCount} 个 · 失败 ${report.failureCount} 行")
+                if (report.duplicatedCount > 0) {
+                    Text(
+                        "重复：${report.duplicatedTexts.take(10).joinToString("、")}${if (report.duplicatedCount > 10) "…" else ""}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 report.failures.take(10).forEach {
-                    Text("第 ${it.lineNo} 行：${it.reason}", style = MaterialTheme.typography.bodySmall)
+                    Text("失败行：第 ${it.lineNo} 行 ${it.reason}", style = MaterialTheme.typography.bodySmall)
                 }
                 if (report.failureCount > 10) Text("…", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "新导入的词将按添加顺序进入每日新词队列。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         },
-        confirmButton = { TextButton(onClick = { vm.dismissImportReport() }) { Text("好的") } },
+        confirmButton = { TextButton(onClick = { vm.dismissImportReport() }) { Text("知道了") } },
     )
 }

@@ -63,6 +63,8 @@ class InMemoryLearningRecordRepository : LearningRecordRepository {
     override fun findAllByWordId(wordId: Long): List<LearningRecord> =
         records.entries.filter { it.key.first == wordId }.map { it.value }
 
+    override fun findAll(): List<LearningRecord> = records.values.toList()
+
     override fun upsert(record: LearningRecord) {
         records[record.wordId to record.facet] = record
     }

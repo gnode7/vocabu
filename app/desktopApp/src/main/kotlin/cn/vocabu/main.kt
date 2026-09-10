@@ -24,16 +24,13 @@ fun main() = application {
 
     val viewModel = WordbookViewModel(
         words = wordRepository,
+        records = learningRecordRepository,
+        settings = settingsRepository,
         importer = WordbookImporter(wordRepository),
         excelReader = PoiExcelReader(),
         filePicker = AwtFilePicker(),
         now = { Instant.fromEpochSeconds(System.currentTimeMillis() / 1000) },
     )
-    // 抑制未使用告警：ISSUE-004+ 将接入学习流程与设置页
-    @Suppress("UNUSED_EXPRESSION")
-    learningRecordRepository
-    @Suppress("UNUSED_EXPRESSION")
-    settingsRepository
     @Suppress("UNUSED_EXPRESSION")
     studyLogRepository
 

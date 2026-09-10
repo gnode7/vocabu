@@ -17,6 +17,9 @@ class LearningRecordRepositoryImpl(
     override fun findAllByWordId(wordId: Long): List<LearningRecord> =
         db.learningRecordQueries.selectRecordsByWordId(wordId).executeAsList().map { it.toDomain() }
 
+    override fun findAll(): List<LearningRecord> =
+        db.learningRecordQueries.selectAllRecords().executeAsList().map { it.toDomain() }
+
     override fun upsert(record: LearningRecord) {
         val existing = db.learningRecordQueries.selectRecord(record.wordId, record.facet.name).executeAsOneOrNull()
         if (existing == null) {

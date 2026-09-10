@@ -34,6 +34,9 @@ interface LearningRecordRepository {
 
     fun findAllByWordId(wordId: Long): List<LearningRecord>
 
+    /** 全部学习记录（计数行/今日词表等批量场景）。 */
+    fun findAll(): List<LearningRecord>
+
     /** 按 (wordId, facet) 插入或更新。 */
     fun upsert(record: LearningRecord)
 

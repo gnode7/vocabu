@@ -27,6 +27,9 @@ WHERE wordId = ? AND facet = ?;
 selectRecord:
 SELECT * FROM learningRecord WHERE wordId = ? AND facet = ?;
 
+selectAllRecords:
+SELECT * FROM learningRecord;
+
 selectRecordsByWordId:
 SELECT * FROM learningRecord WHERE wordId = ?;
 
