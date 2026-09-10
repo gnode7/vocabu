@@ -2,7 +2,7 @@
 
 **前置依赖**：ISSUE-004（导航骨架）、ISSUE-001（TtsClient/AudioPlayer Fake）
 **目标**：PRD v1.2 §2.3 全量——今日词表全量分组展示 + 选择 + 播报联动。
-**权威依据**：PRD v1.2 §2.3、§4（播报规格）；ADR-0005（TTS 接缝，本切片用 Fake）。
+**权威依据**：PRD v1.2 §2.3、§4（播报规格）；ADR-0005（TTS 接缝，本切片用 Fake）；prototype.html（通览屏）。
 
 ## 范围
 
