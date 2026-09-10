@@ -32,14 +32,19 @@ object AnswerJudge {
         normalizeEnglish(expected) == normalizeEnglish(actual)
 
     /**
-     * 中文答案判定：标准答案按分隔符拆出多个释义（trim、去空项），
-     * 用户输入包含任一释义即正确。
+     * 中文答案判定：对称拆分（PRD §2.5.2，修订 #20）。
+     * 用户输入与标准答案均按中英文标点（，,；;）拆段；
+     * 输入的每一段是标准答案中某一释义段的子串即该段命中，全部段命中 → 正确（支持拼接输入）；
+     * 仅一段时退化为普通子串匹配。
      */
     fun chinese(expected: String, actual: String): Boolean {
-        if (actual.isBlank()) return false
-        return splitDefinitions(expected).any { actual.contains(it) }
+        val inputSegments = splitDefinitions(actual)
+        if (inputSegments.isEmpty()) return false
+        val definitionSegments = splitDefinitions(expected)
+        return inputSegments.all { segment -> definitionSegments.any { it.contains(segment) } }
     }
 
+    /** 按中英文逗号/分号拆段，trim，去空段。 */
     private fun splitDefinitions(expected: String): List<String> =
         expected.split(*DEFINITION_SEPARATORS)
             .map { it.trim() }

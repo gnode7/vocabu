@@ -57,24 +57,40 @@ class AnswerJudgeTest {
         assertFalse(AnswerJudge.english("apple", ""))
     }
 
-    // ---- 中文答案判定：多释义拆分后包含任一即对 ----
+    // ---- 中文答案判定：对称拆分（PRD §2.5.2，修订 #20）----
 
     @Test
-    fun `中文判定按中英文逗号分号拆分多释义`() {
-        // 答案 "苹果;水果，fruit" → [苹果, 水果, fruit]
-        assertTrue(AnswerJudge.chinese("苹果;水果，fruit", "我爱吃苹果"))
-        assertTrue(AnswerJudge.chinese("苹果;水果，fruit", "这是一种水果"))
-        assertTrue(AnswerJudge.chinese("苹果;水果，fruit", "fruit juice 之类"))
+    fun `中文判定对称拆分 拼接输入每段命中即可`() {
+        // 答案拆段 [详尽, 精心]；输入拆段 [详尽, 精心]，全部命中
+        assertTrue(AnswerJudge.chinese("详尽，精心", "详尽；精心"))
+        assertTrue(AnswerJudge.chinese("详尽;精心", "精心，详尽"))
     }
 
     @Test
-    fun `中文判定不含任一释义为错`() {
+    fun `中文判定单段退化为普通子串匹配`() {
+        assertTrue(AnswerJudge.chinese("详尽，精心", "详尽"))
+        assertTrue(AnswerJudge.chinese("苹果;水果，fruit", "苹果"))
+        // 输入段是释义的子串即命中
+        assertTrue(AnswerJudge.chinese("苹果;水果，fruit", "果"))
+    }
+
+    @Test
+    fun `中文判定任一段未命中即错`() {
+        assertFalse(AnswerJudge.chinese("详尽，精心", "详尽；敷衍"))
         assertFalse(AnswerJudge.chinese("苹果;水果", "梨"))
+        // 输入超出释义内容的部分不再被判对（旧规则下 "fruit juice 之类" 会误判对）
+        assertFalse(AnswerJudge.chinese("苹果;水果，fruit", "fruit juice 之类"))
+    }
+
+    @Test
+    fun `中文判定空输入与空段`() {
         assertFalse(AnswerJudge.chinese("苹果;水果", ""))
+        // 分隔符切出的空段被忽略，不参与判定
+        assertTrue(AnswerJudge.chinese("苹果;水果", "；苹果；；"))
     }
 
     @Test
     fun `中文判定释义trim后匹配`() {
-        assertTrue(AnswerJudge.chinese(" 苹果 ; 水果 ", "一个苹果"))
+        assertTrue(AnswerJudge.chinese(" 苹果 ; 水果 ", "苹果"))
     }
 }

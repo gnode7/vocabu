@@ -126,28 +126,55 @@ class PersistenceTest {
 
     @Test
     fun `保存后读取往返一致`() {
-        val modified = AppSettings(dailyNewWordCount = 50, facetCatchUpQuota = 0, ttsService = "test")
+        val modified = AppSettings(
+            dailyNewWordCount = 50,
+            facetCatchUpQuota = 0,
+            ttsService = "test",
+            recallDirection = "zh2en",
+            testMode = "writing",
+            correctionReplay = false,
+        )
         settingsRepo.save(modified)
-        settingsRepo.save(modified.copy(dailyNewWordCount = 60)) // 再次 upsert 仍是单行
+        settingsRepo.save(modified.copy(dailyNewWordCount = 60)) // 再次保存仍是单行
 
         val loaded = settingsRepo.get()
         assertEquals(60, loaded.dailyNewWordCount)
         assertEquals(0, loaded.facetCatchUpQuota)
         assertEquals("test", loaded.ttsService)
+        assertEquals("zh2en", loaded.recallDirection)
+        assertEquals("writing", loaded.testMode)
+        assertEquals(false, loaded.correctionReplay)
     }
 
-    // ---- 每日统计 upsert ----
+    // ---- 每日统计增量落账（PRD 5.3 v1.2，修订 #21）----
 
     @Test
-    fun `同日统计upsert覆盖`() {
-        logRepo.upsert(DailyStudyLog(date = "2026-09-09", newWordsLearned = 10, accuracy = 0.8f))
-        logRepo.upsert(DailyStudyLog(date = "2026-09-09", newWordsLearned = 15, wordsReviewed = 5, accuracy = 0.9f))
+    fun `同日统计增量落账 计数累计且accuracy派生`() {
+        // 听写一次提交 = 2 个判定（英文段 + 中文段），全对
+        logRepo.increment(date = "2026-09-10", correctJudgments = 2, totalJudgments = 2)
+        // 默写一次提交 = 1 个判定，答错
+        logRepo.increment(date = "2026-09-10", correctJudgments = 0, totalJudgments = 1)
+        // 同日又学习新词与复习
+        val log = logRepo.increment(date = "2026-09-10", newWordsLearned = 3, wordsReviewed = 2)
 
-        val log = assertNotNull(logRepo.findByDate("2026-09-09"))
-        assertEquals(15, log.newWordsLearned)
-        assertEquals(5, log.wordsReviewed)
-        assertEquals(0.9f, log.accuracy)
-        assertNull(logRepo.findByDate("2026-09-08"))
+        assertEquals(3, log.newWordsLearned)
+        assertEquals(2, log.wordsReviewed)
+        assertEquals(2, log.totalCorrect)
+        assertEquals(3, log.totalJudgments)
+        assertEquals(2.0f / 3.0f, log.accuracy, 1e-6f)
+
+        // 落库读回一致（accuracy 派生值随计数一并写入）
+        val reloaded = assertNotNull(logRepo.findByDate("2026-09-10"))
+        assertEquals(log, reloaded)
+        assertNull(logRepo.findByDate("2026-09-09"))
+    }
+
+    @Test
+    fun `增量落账首日自动建行`() {
+        val log = logRepo.increment(date = "2026-09-11", wordsReviewed = 4)
+        assertEquals(4, log.wordsReviewed)
+        assertEquals(0, log.totalJudgments)
+        assertEquals(0.0f, log.accuracy, 1e-6f)
     }
 
     // ---- 文件库（验收：桌面端可创建数据库文件）----

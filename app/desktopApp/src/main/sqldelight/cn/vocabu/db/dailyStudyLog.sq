@@ -3,16 +3,18 @@ CREATE TABLE dailyStudyLog (
     newWordsLearned INTEGER NOT NULL DEFAULT 0,
     wordsReviewed INTEGER NOT NULL DEFAULT 0,
     sessionTimeSeconds INTEGER NOT NULL DEFAULT 0,
+    totalJudgments INTEGER NOT NULL DEFAULT 0,
+    totalCorrect INTEGER NOT NULL DEFAULT 0,
     accuracy REAL NOT NULL DEFAULT 0.0
 );
 
 insertLog:
-INSERT INTO dailyStudyLog(date, newWordsLearned, wordsReviewed, sessionTimeSeconds, accuracy)
-VALUES (?, ?, ?, ?, ?);
+INSERT INTO dailyStudyLog(date, newWordsLearned, wordsReviewed, sessionTimeSeconds, totalJudgments, totalCorrect, accuracy)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 updateLog:
 UPDATE dailyStudyLog
-SET newWordsLearned = ?, wordsReviewed = ?, sessionTimeSeconds = ?, accuracy = ?
+SET newWordsLearned = ?, wordsReviewed = ?, sessionTimeSeconds = ?, totalJudgments = ?, totalCorrect = ?, accuracy = ?
 WHERE date = ?;
 
 selectLogByDate:

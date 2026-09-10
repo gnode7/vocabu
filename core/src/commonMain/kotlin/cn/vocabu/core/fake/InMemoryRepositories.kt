@@ -85,13 +85,23 @@ class InMemorySettingsRepository(
     }
 }
 
-/** 内存版每日统计仓库。 */
+/** 内存版每日统计仓库：增量落账语义。 */
 class InMemoryStudyLogRepository : StudyLogRepository {
     private val logs = LinkedHashMap<String, DailyStudyLog>()
 
-    override fun upsert(log: DailyStudyLog) {
-        logs[log.date] = log
-    }
-
     override fun findByDate(date: String): DailyStudyLog? = logs[date]
+
+    override fun increment(
+        date: String,
+        newWordsLearned: Int,
+        wordsReviewed: Int,
+        sessionTimeSeconds: Long,
+        correctJudgments: Int,
+        totalJudgments: Int,
+    ): DailyStudyLog {
+        val updated = (logs[date] ?: DailyStudyLog(date))
+            .plus(newWordsLearned, wordsReviewed, sessionTimeSeconds, correctJudgments, totalJudgments)
+        logs[date] = updated
+        return updated
+    }
 }

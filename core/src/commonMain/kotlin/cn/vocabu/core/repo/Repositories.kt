@@ -47,9 +47,20 @@ interface SettingsRepository {
     fun save(settings: AppSettings)
 }
 
-/** 每日学习统计仓库（静默 upsert，PRD §5.3）。 */
+/** 每日学习统计仓库：增量落账语义（修订 #19「提交即落账」，PRD 5.3）。 */
 interface StudyLogRepository {
-    fun upsert(log: DailyStudyLog)
-
     fun findByDate(date: String): DailyStudyLog?
+
+    /**
+     * 增量 upsert：读当日统计（无则空表）→ 累加各计数 → 写回（accuracy 随计数派生），
+     * 返回更新后的当日统计。
+     */
+    fun increment(
+        date: String,
+        newWordsLearned: Int = 0,
+        wordsReviewed: Int = 0,
+        sessionTimeSeconds: Long = 0,
+        correctJudgments: Int = 0,
+        totalJudgments: Int = 0,
+    ): DailyStudyLog
 }
