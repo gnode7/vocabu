@@ -2,15 +2,22 @@ package cn.vocabu
 
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import cn.vocabu.core.fake.FakeAudioPlayer
+import cn.vocabu.core.fake.FakeTtsClient
+import cn.vocabu.core.io.ExcelReader
+import cn.vocabu.core.io.FilePicker
+import cn.vocabu.core.logic.WordbookImporter
+import cn.vocabu.core.model.Word
 import cn.vocabu.data.LearningRecordRepositoryImpl
 import cn.vocabu.data.SettingsRepositoryImpl
 import cn.vocabu.data.StudyLogRepositoryImpl
 import cn.vocabu.data.VocabuDatabaseFactory
 import cn.vocabu.data.WordRepositoryImpl
-import cn.vocabu.core.logic.WordbookImporter
 import cn.vocabu.platform.AwtFilePicker
 import cn.vocabu.platform.PoiExcelReader
-import cn.vocabu.ui.WordbookScreen
+import cn.vocabu.ui.HomeViewModel
+import cn.vocabu.ui.SettingsViewModel
+import cn.vocabu.ui.VocabuApp
 import cn.vocabu.ui.WordbookViewModel
 import kotlin.time.Instant
 
@@ -22,7 +29,21 @@ fun main() = application {
     val settingsRepository = SettingsRepositoryImpl(db)
     val studyLogRepository = StudyLogRepositoryImpl(db)
 
-    val viewModel = WordbookViewModel(
+    // TTS/播放器接缝：真实实现 ISSUE-008（有道 + 两级缓存 + javax.sound）；当前 Fake 静默
+    val ttsClient = FakeTtsClient()
+    val audioPlayer = FakeAudioPlayer()
+
+    val homeViewModel = HomeViewModel(
+        words = wordRepository,
+        records = learningRecordRepository,
+        settings = settingsRepository,
+        speak = { word: Word ->
+            audioPlayer.clear()
+            ttsClient.fetch(word.text, cn.vocabu.core.audio.TtsVoice.AMERICAN)?.let { audioPlayer.enqueue(it) }
+        },
+        now = { Instant.fromEpochSeconds(System.currentTimeMillis() / 1000) },
+    )
+    val wordbookViewModel = WordbookViewModel(
         words = wordRepository,
         records = learningRecordRepository,
         settings = settingsRepository,
@@ -31,13 +52,15 @@ fun main() = application {
         filePicker = AwtFilePicker(),
         now = { Instant.fromEpochSeconds(System.currentTimeMillis() / 1000) },
     )
+    val settingsViewModel = SettingsViewModel(settingsRepository)
+
     @Suppress("UNUSED_EXPRESSION")
-    studyLogRepository
+    studyLogRepository // ISSUE-006/007 落账使用
 
     Window(
         onCloseRequest = ::exitApplication,
         title = "Vocabu",
     ) {
-        WordbookScreen(viewModel)
+        VocabuApp(homeViewModel, wordbookViewModel, settingsViewModel)
     }
 }
