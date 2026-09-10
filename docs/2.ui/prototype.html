@@ -172,20 +172,18 @@ body{
 .r-en,.r-zh{font-family:var(--mono);font-size:15px;font-weight:600}
 .r-zh{font-family:inherit;font-weight:500}
 .hidden-side{
-  color:transparent;border-radius:var(--r-s);background:
-  linear-gradient(var(--line) var(--line)) 0 0/100% 1px no-repeat,
-  var(--surface-2,#EDEDE8);
-  background-color:#EDEDE8;
-  user-select:none;min-height:20px;display:flex;align-items:center;
-  transition:background-color .12s;
+  color:transparent;user-select:none;min-height:20px;display:flex;align-items:center;
+  transition:color .12s;
   position:relative;cursor:pointer;
 }
 .hidden-side::after{
-  content:"按住此处查看";font-size:11px;color:var(--text-3);
-  letter-spacing:.06em;font-family:inherit;position:absolute;left:0;
+  content:"　＊＊＊＊＊＊　";font-size:13px;color:var(--text-3);
+  font-family:inherit;position:absolute;left:0;
 }
 .revealed{background:none!important;color:var(--text)!important;cursor:auto}
 .revealed::after{content:none}
+.hidden-side .tip{pointer-events:none}
+.hidden-side.revealed .tip{display:none}
 /* 四段式记忆进度条 */
 .meter-cell{display:flex;justify-content:flex-end}
 .meter{
@@ -209,6 +207,7 @@ body{
   background:rgba(255,255,255,.14);color:#fff;
 }
 .mseg:hover .tip,.mseg:focus-visible .tip{opacity:1;transform:translateX(-50%) translateY(0)}
+.hidden-side:hover .tip{opacity:1;transform:translateX(-50%) translateY(0)}
 .meter-head{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--text-3)}
 .meter-head i{font-style:normal}
 .meter-head b{font-weight:600;font-family:inherit;color:var(--text-2);letter-spacing:.14em}
@@ -226,7 +225,6 @@ body{
   align-items:center;gap:10px;
 }
 .round-banner.show{display:flex}
-.peek-note{font-size:12px;color:var(--text-3)}
 
 /* ===== 考察 · 单焦点 ===== */
 .focus-wrap{max-width:640px;margin:26px auto 0;display:flex;flex-direction:column;min-height:520px}
@@ -268,30 +266,30 @@ body{
 .correct-ans .mono{font-family:var(--mono);font-weight:600}
 .focus-actions{margin-top:auto;padding-top:22px;display:flex;align-items:center;gap:10px}
 .advance-hint{margin-left:auto;font-size:12px;color:var(--text-3)}
-/* 听写/默写：提交批改交互 */
-.ans-wrap{position:relative}
-.ans-wrap .ans-input{width:100%;padding-right:36px}
-.mark{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:none;pointer-events:none}
-.mark.show{display:inline-flex}
 .btn.ghost{background:none;border-color:transparent;color:var(--text-2)}
 .btn.ghost:hover{color:var(--text)}
 .btn.ghost:disabled{opacity:.4;cursor:default}
-.focus-actions .btn.ghost{margin-left:auto}
-.submit-wrap{
-  position:relative;display:inline-flex;padding:3px;margin:-3px;
-  border-radius:calc(var(--r-m) + 3px);
-  background:conic-gradient(var(--ring-c,var(--line)) calc(var(--ring-p,0)*1turn),var(--ring-track,var(--line)) 0);
-}
-.submit-wrap .btn{position:relative;z-index:1}
-.fix{
-  position:absolute;right:36px;top:50%;transform:translateY(-50%);
-  color:var(--easy);font-size:12.5px;font-weight:600;
-  max-width:52%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  display:none;pointer-events:none;
-}
-.fix.show{display:block}
+.focus-actions .btn.ghost{margin-right:auto}
+/* 听写/默写：提交批改交互（每框独立计时圈 + 结果徽章） */
+.ans-row{display:flex;align-items:center;gap:10px}
+.ans-row .ans-wrap{flex:none;width:360px;position:relative}
+.ans-row .ans-input{width:100%;padding-right:76px}
+.done-hint{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:none;align-items:center;gap:4px;font-size:11.5px;color:var(--text-3);pointer-events:none}
+.done-hint kbd{font-size:10px;line-height:14px;padding:0 4px}
+.ans-input:not(:disabled) ~ .done-hint{display:inline-flex}
+.ring2{position:relative;width:34px;height:34px;flex:none}
+.ring2>svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.ring2 .rbg{fill:none;stroke:var(--line);stroke-width:3}
+.ring2 .rfg{fill:none;stroke:var(--easy);stroke-width:3;stroke-linecap:round;stroke-dasharray:94.25;stroke-dashoffset:94.25}
+.ring2 .badge{position:absolute;inset:0;display:none;align-items:center;justify-content:center;border-radius:50%}
+.ring2.ok .badge{display:flex;background:var(--easy)}
+.ring2.bad .badge{display:flex;background:var(--forget)}
+.ring2.ok>svg,.ring2.bad>svg{display:none}
+.fix{display:none;flex:none;width:200px;color:var(--text);font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fix.show{display:inline-flex}
 .result-meter{display:none;align-items:center;gap:10px;margin-top:2px}
 .result-meter.show{display:flex}
+.result-meter.under{margin-top:6px}
 .result-meter .lbl{font-size:12.5px;color:var(--text-2)}
 .meter.static .mseg{pointer-events:none;cursor:default}
 .zh-prompt{font-size:26px;font-weight:600;line-height:1.45;margin:16px 0 4px}
@@ -461,7 +459,6 @@ body{
         <h2>回忆巩固</h2>
         <span class="session-meta" id="recallMeta">混合 · 第 <b id="roundNo">1</b> 轮 · 已评 <b id="ratedCnt">0</b>/26</span>
         <span class="session-spacer"></span>
-        <span class="peek-note">按住 <span class="kbd">Q</span> 偷看选中词条</span>
         <button class="btn" id="recallEnd">结束</button>
       </div>
       <div class="round-banner" id="roundBanner"></div>
@@ -484,29 +481,33 @@ body{
 
         <div class="answer-block">
           <div class="ans-label"><span>英文拼写</span></div>
-          <div class="ans-wrap">
-            <input class="ans-input" id="dictEn" autocomplete="off" spellcheck="false" placeholder="听音，写出英文">
+          <div class="ans-row">
+            <div class="ans-wrap">
+              <input class="ans-input" id="dictEn" autocomplete="off" spellcheck="false" placeholder="听音，写出英文">
+              <span class="done-hint">完成 <kbd>↵</kbd></span>
+            </div>
+            <span class="ring2" id="enRing"><svg viewBox="0 0 36 36"><circle class="rbg" cx="18" cy="18" r="15"/><circle class="rfg" id="enRingFg" cx="18" cy="18" r="15"/></svg><span class="badge" id="enBadge"></span></span>
             <span class="fix" id="enFix"></span>
-            <span class="mark" id="enMark"></span>
           </div>
+          <div class="result-meter under" id="enMeter"></div>
         </div>
 
         <div class="answer-block">
           <div class="ans-label"><span>中文释义</span></div>
-          <div class="ans-wrap">
-            <input class="ans-input zh" id="dictZh" autocomplete="off" spellcheck="false" placeholder="再写出中文释义（可先作答）">
+          <div class="ans-row">
+            <div class="ans-wrap">
+              <input class="ans-input zh" id="dictZh" autocomplete="off" spellcheck="false" placeholder="再写出中文释义（可先作答）">
+              <span class="done-hint">完成 <kbd>↵</kbd></span>
+            </div>
+            <span class="ring2" id="zhRing"><svg viewBox="0 0 36 36"><circle class="rbg" cx="18" cy="18" r="15"/><circle class="rfg" id="zhRingFg" cx="18" cy="18" r="15"/></svg><span class="badge" id="zhBadge"></span></span>
             <span class="fix" id="zhFix"></span>
-            <span class="mark" id="zhMark"></span>
           </div>
+          <div class="result-meter under" id="zhMeter"></div>
         </div>
-
-        <div class="result-meter" id="dictMeter"></div>
 
         <div class="focus-actions">
           <button class="btn ghost" id="dictPrev">上一个</button>
-          <span class="submit-wrap" id="dictRing">
-            <button class="btn" id="dictSubmit">提交</button>
-          </span>
+          <button class="btn" id="dictSubmit">提交</button>
         </div>
       </div>
     </section>
@@ -527,20 +528,20 @@ body{
 
         <div class="answer-block">
           <div class="ans-label"><span>英文拼写</span></div>
-          <div class="ans-wrap">
-            <input class="ans-input" id="writEn" autocomplete="off" spellcheck="false" placeholder="按中文释义写出英文">
+          <div class="ans-row">
+            <div class="ans-wrap">
+              <input class="ans-input" id="writEn" autocomplete="off" spellcheck="false" placeholder="按中文释义写出英文">
+              <span class="done-hint">完成 <kbd>↵</kbd></span>
+            </div>
+            <span class="ring2" id="writRing"><svg viewBox="0 0 36 36"><circle class="rbg" cx="18" cy="18" r="15"/><circle class="rfg" id="writRingFg" cx="18" cy="18" r="15"/></svg><span class="badge" id="writBadge"></span></span>
             <span class="fix" id="writFix"></span>
-            <span class="mark" id="writMark"></span>
           </div>
+          <div class="result-meter under" id="writMeter"></div>
         </div>
-
-        <div class="result-meter" id="writMeter"></div>
 
         <div class="focus-actions">
           <button class="btn ghost" id="writPrev">上一个</button>
-          <span class="submit-wrap" id="writRing">
-            <button class="btn" id="writSubmit">提交</button>
-          </span>
+          <button class="btn" id="writSubmit">提交</button>
         </div>
       </div>
     </section>
@@ -845,9 +846,9 @@ $$("[data-nav]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.nav)));
 /* 底部状态栏：随屏切换的快捷键与规则 */
 const HINTS={
   browse:'<span><span class="kbd">↑</span><span class="kbd">↓</span> 选择</span><span><span class="kbd">空格</span> 播报选中词</span><span>单词播报：读音 → 字母拼写 · 词组播报：读音 → 中文翻译</span>',
-  recall:'<span><span class="kbd">↑</span><span class="kbd">↓</span> 选择</span><span>点进度条评级 · 悬停看名称</span><span><span class="kbd">Q</span>（按住）偷看选中</span><span>评过的词条置灰，可随时改评</span><span>写入该词条分配方向的考核面账本</span>',
-  dictation:'<span>考核面：听→拼 + 英→中 · 双评分分别入账</span><span><span class="kbd">回车</span> 提交 / 下一个</span><span>「上一个」随时回看作答</span><span>留空或答错 = 忘记</span>',
-  writing:'<span>考核面：中→英</span><span><span class="kbd">回车</span> 提交 / 下一个</span><span>「上一个」随时回看作答</span><span>留空或答错 = 忘记 · 计时起点：中文展示时刻</span>',
+  recall:'<span><span class="kbd">↑</span><span class="kbd">↓</span> 选择</span><span>点进度条评级 · 悬停看名称</span><span>按住隐藏区或 <span class="kbd">Q</span> 查看答案</span><span>评过的词条置灰，可随时改评</span><span>写入该词条分配方向的考核面账本</span>',
+  dictation:'<span>考核面：听→拼 + 英→中 · 双评分分别入账</span><span><span class="kbd">回车</span> 锁定当前部分 · 再按 提交批改</span><span>计时跟随焦点输入框</span><span>留空或答错 = 忘记</span>',
+  writing:'<span>考核面：中→英</span><span><span class="kbd">回车</span> 提交批改</span><span>留空或答错 = 忘记 · 计时起点：中文展示时刻</span>',
   wordbook:'<span><span class="kbd">输入</span> 即时筛选</span><span><span class="kbd">回车</span> 打开添加弹窗并带入关键词</span>',
   settings:'<span>修改保存后，下次进入对应功能时生效</span>'
 };
@@ -930,10 +931,11 @@ function renderRecall(){
   list.innerHTML=
     `<div class="r-head"><span>词条</span><span></span><span class="meter-head" aria-hidden="true"><i>忘</i><b>熟练程度</b><i>熟</i></span></div>`+
     queue.map((w,i)=>{
+      /* 列位固定：英文恒在左列、中文恒在右列；隐藏侧随方向 */
       const hiddenZh=w.dir==="e2z";
       const main=hiddenZh
-        ?`<span><span class="r-en">${esc(w.en)}</span></span><span class="hidden-side" data-hidden data-dir="e2z">${esc(w.zh)}</span>`
-        :`<span><span class="r-zh">${esc(w.zh)}</span></span><span class="hidden-side" data-hidden data-dir="z2e">${esc(w.en)}</span>`;
+        ?`<span><span class="r-en">${esc(w.en)}</span></span><span class="hidden-side" data-hidden data-dir="e2z"><span class="tip">偷看 <kbd>Q</kbd></span>${esc(w.zh)}</span>`
+        :`<span class="hidden-side" data-hidden data-dir="z2e"><span class="tip">偷看 <kbd>Q</kbd></span>${esc(w.en)}</span><span><span class="r-zh">${esc(w.zh)}</span></span>`;
       return `<div class="t-row${w.rating?" rated":""}" data-ri="${i}">${main}${meterHTML(w)}</div>`;
     }).join("");
   $("#roundNo").textContent=round;
@@ -954,11 +956,7 @@ function rate(row,key){
   if(first)totalRated++;
   w.rating=key;
   row.classList.add("rated");
-  const n=RATE_KEYS.indexOf(key)+1;
-  row.querySelectorAll(".mseg").forEach((s,i)=>{
-    if(i<n){s.classList.add("lit");s.style.background=LIT_COLOR[key];}
-    else{s.classList.remove("lit");s.style.background="";}
-  });
+  applyFill(row,key);
   updateRatedCnt();
   const rows=$$("#recallList .t-row");
   if(rows.every(r=>r.classList.contains("rated"))){nextRound();return;}
@@ -967,6 +965,18 @@ function rate(row,key){
     const next=rows.slice(idx+1).find(r=>!r.classList.contains("rated"))||rows.find(r=>!r.classList.contains("rated"));
     if(next)selectRecall(rows.indexOf(next));
   }
+}
+/* 悬停预览：点亮 1..N；移出恢复已存评级 */
+function applyFill(row,key){
+  const n=key?RATE_KEYS.indexOf(key)+1:0;
+  row.querySelectorAll(".mseg").forEach((s,i)=>{
+    if(key&&i<n){s.classList.add("lit");s.style.background=LIT_COLOR[key];}
+    else{s.classList.remove("lit");s.style.background="";}
+  });
+}
+function restoreFill(row){
+  const w=queue[+row.dataset.ri];
+  applyFill(row,w?w.rating:null);
 }
 function nextRound(){
   if(round===1){
@@ -983,7 +993,18 @@ function nextRound(){
     toast("回忆巩固结束 · 学习记录已更新");
   }
 }
-document.addEventListener("click",e=>{
+$("#recallList").addEventListener("mouseover",e=>{
+  const s=e.target.closest(".mseg");if(!s)return;
+  applyFill(s.closest(".t-row"),s.dataset.rate);
+});
+$("#recallList").addEventListener("mouseout",e=>{
+  const s=e.target.closest(".mseg");if(!s)return;
+  const to=e.relatedTarget&&e.relatedTarget.closest?e.relatedTarget.closest(".mseg"):null;
+  if(to&&to.closest(".t-row")===s.closest(".t-row"))return;
+  restoreFill(s.closest(".t-row"));
+});
+/* 按下即固定评级 */
+document.addEventListener("mousedown",e=>{
   const rateBtn=e.target.closest("[data-rate]");
   if(rateBtn){rate(rateBtn.closest(".t-row"),rateBtn.dataset.rate);}
 });
@@ -1029,8 +1050,9 @@ $("#recallEnd").addEventListener("click",()=>{
 });
 
 /* ================= 考察 · 听写 ================= */
-let dictQueue=[],dictIdx=0,dictStarted=false,dictResults=[],ringIv=null,ringWrapId=null;
-let enMs=0,zhMs=0,activePart=null,lastTick=0;
+let dictQueue=[],dictIdx=0,dictStarted=false,dictResults=[],ringIv=null;
+let enMs=0,zhMs=0,activePart=null,lastTick=0,lockedEn=false,lockedZh=false;
+const RING_C=94.25;
 const LEVEL_NAME={1:"Forget",2:"Hard",3:"Good",4:"Easy"};
 function replayEnabled(){return $("#setReplay").classList.contains("on");}
 function gradeLevel(ok,ms){
@@ -1045,48 +1067,46 @@ function meterStatic(level){
   return `<span class="meter-cell"><span class="meter static" role="img" aria-label="本词评级：${LEVEL_NAME[level]}">`+
     RATE_KEYS.map((k,idx)=>{
       const lit=idx<level;
-      return `<button type="button" class="mseg${lit?" lit":""}" tabindex="-1"${lit?` style="background:${LEVEL_COLOR[level]}"`:""}></button>`;
+      return `<button type="button" class="mseg${lit?" lit":""}" tabindex="-1"${lit?` style="background:${LIT_COLOR[RATE_KEYS[level-1]]}"`:""}></button>`;
     }).join("")+`</span></span>`;
 }
-const MARK_OK='<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#16A34A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5L6 12l7.5-8"/></svg>';
-const MARK_BAD='<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#DC2626" stroke-width="2.2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>';
-function setMark(id,ok,show){
-  const m=$("#"+id);
-  m.innerHTML=ok?MARK_OK:MARK_BAD;
-  m.classList.toggle("show",show);
+const BADGE_OK='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5L6 12l7.5-8"/></svg>';
+const BADGE_BAD='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>';
+function setRingBadge(ringId,badgeId,ok){
+  const r=$("#"+ringId);
+  r.classList.toggle("ok",ok);
+  r.classList.toggle("bad",!ok);
+  $("#"+badgeId).innerHTML=ok?BADGE_OK:BADGE_BAD;
 }
-/* 焦点制分别计时：环显示当前焦点框的累计耗时，切换焦点即暂停/恢复 */
+/* 焦点制分别计时：焦点在哪个框，哪个框计时继续，另一个暂停 */
 function foldTick(){
   const now=Date.now();
   if(activePart==="en")enMs+=now-lastTick;
   else if(activePart==="zh")zhMs+=now-lastTick;
   lastTick=now;
 }
-function tick(){foldTick();updateRing();}
-function startRing(wrapId){
-  ringWrapId=wrapId;enMs=0;zhMs=0;activePart="en";lastTick=Date.now();
-  ringIv=setInterval(tick,80);
-  updateRing();
+function drawRings(){
+  const easy=+$("#setEasy").value||5,good=+$("#setGood").value||10;
+  drawRing("enRingFg",enMs,easy,good);
+  drawRing("zhRingFg",zhMs,easy,good);
+  drawRing("writRingFg",enMs,easy,good);
 }
+function drawRing(fgId,ms,easy,good){
+  const fg=$("#"+fgId);if(!fg)return;
+  const s=ms/1000;
+  fg.style.strokeDashoffset=RING_C*(1-Math.min(s/good,1));
+  fg.style.stroke=s<=easy?"var(--easy)":(s<=good?"var(--good)":"var(--hard)");
+}
+function startRingTick(){
+  if(ringIv)clearInterval(ringIv);
+  ringIv=setInterval(()=>{foldTick();drawRings();},80);
+}
+function stopRingTick(){if(ringIv){clearInterval(ringIv);ringIv=null;}}
 function switchPart(part){
   if(activePart===part)return;
   foldTick();
   activePart=part;
-  updateRing();
-}
-function freezeRing(wrapId,level){
-  if(ringIv){clearInterval(ringIv);ringIv=null;}
-  activePart=null;
-  const wrap=$("#"+wrapId);
-  wrap.style.setProperty("--ring-p",1);
-  wrap.style.setProperty("--ring-c",LEVEL_COLOR[level]);
-}
-function updateRing(){
-  const easy=+$("#setEasy").value||5,good=+$("#setGood").value||10;
-  const ms=activePart==="zh"?zhMs:enMs;
-  const wrap=$("#"+ringWrapId);
-  wrap.style.setProperty("--ring-p",Math.min(ms/1000/good,1));
-  wrap.style.setProperty("--ring-c",ms/1000<=easy?"var(--easy)":"var(--good)");
+  drawRings();
 }
 function beep(){
   try{
@@ -1107,22 +1127,31 @@ function renderDictation(){
   if(res){
     en.className="ans-input"+(res.enOk?" ok":" bad");
     zh.className="ans-input zh"+(res.zhOk?" ok":" bad");
-    setMark("enMark",res.enOk,true);setMark("zhMark",res.zhOk,true);
+    setRingBadge("enRing","enBadge",res.enOk);
+    setRingBadge("zhRing","zhBadge",res.zhOk);
     if(!res.enOk){$("#enFix").textContent=w.en;$("#enFix").classList.add("show");}else{$("#enFix").classList.remove("show");}
     if(!res.zhOk){$("#zhFix").textContent=w.zh;$("#zhFix").classList.add("show");}else{$("#zhFix").classList.remove("show");}
-    if(!res.enOk&&replayEnabled()){playAnim();toast("已回放：读音 → 字母拼写（可在设置关闭）");}
-    if(!res.zhOk&&replayEnabled()){toast("已语音播放中文释义（可在设置关闭）");}
-    $("#dictMeter").innerHTML=meterStatic(res.level);
-    $("#dictMeter").classList.add("show");
-    freezeRing("dictRing",res.level);
+    if((!res.enOk||!res.zhOk)&&replayEnabled()){
+      if(!res.enOk)playAnim();
+      toast(res.enOk?"已语音播放中文释义（可在设置关闭）":"已回放：读音 → 字母拼写（可在设置关闭）");
+    }
+    $("#enMeter").innerHTML=meterStatic(res.enLevel);
+    $("#enMeter").classList.add("show");
+    $("#zhMeter").innerHTML=meterStatic(res.zhLevel);
+    $("#zhMeter").classList.add("show");
+    stopRingTick();
     $("#dictSubmit").textContent="下一个";
+    $("#dictSubmit").focus();
   }else{
     en.className="ans-input";zh.className="ans-input zh";
     $("#enFix").classList.remove("show");$("#zhFix").classList.remove("show");
-    setMark("enMark",false,false);setMark("zhMark",false,false);
-    $("#dictMeter").classList.remove("show");$("#dictMeter").innerHTML="";
+    $("#enRing").className="ring2";$("#zhRing").className="ring2";
+    $("#enMeter").classList.remove("show");$("#enMeter").innerHTML="";
+    $("#zhMeter").classList.remove("show");$("#zhMeter").innerHTML="";
     $("#dictSubmit").textContent="提交";
-    startRing("dictRing");
+    lockedEn=false;lockedZh=false;
+    enMs=0;zhMs=0;activePart="en";lastTick=Date.now();
+    startRingTick();
     setTimeout(()=>en.focus(),50);
   }
   $("#dictPrev").disabled=dictIdx===0;
@@ -1132,16 +1161,23 @@ function playAnim(){
   setTimeout(()=>b.classList.remove("playing"),1400);
 }
 $("#dictPlay").addEventListener("click",()=>{playAnim();toast("重新播报（TTS）");});
+function lockPart(part){
+  foldTick();
+  if(part==="en"){lockedEn=true;$("#dictEn").disabled=true;}
+  else{lockedZh=true;$("#dictZh").disabled=true;}
+}
 function submitDict(){
   if(dictResults[dictIdx])return;
-  foldTick();
+  foldTick();stopRingTick();
+  lockedEn=true;lockedZh=true;
   const en=$("#dictEn"),zh=$("#dictZh"),w=dictQueue[dictIdx];
+  en.disabled=true;zh.disabled=true;
   const enOk=en.value.trim().toLowerCase()===w.en.toLowerCase();
   const zhOk=zh.value.trim()?w.zh.split(/[，,；;]/).some(m=>m.trim().includes(zh.value.trim())):false;
   const enLevel=gradeLevel(enOk,enMs),zhLevel=gradeLevel(zhOk,zhMs);
   const level=Math.min(enLevel,zhLevel);
   dictResults[dictIdx]={enVal:en.value,zhVal:zh.value,enOk,zhOk,level,
-    enGradeName:LEVEL_NAME[enLevel],zhGradeName:LEVEL_NAME[zhLevel]};
+    enLevel,zhLevel,enGradeName:LEVEL_NAME[enLevel],zhGradeName:LEVEL_NAME[zhLevel]};
   if(!enOk||!zhOk)beep();
   renderDictation();
 }
@@ -1149,24 +1185,31 @@ function dictNext(){
   if(dictIdx<dictQueue.length-1){dictIdx++;renderDictation();}
   else enterWriting();
 }
-function enterOrNext(){
-  if(!dictResults[dictIdx])submitDict();
-  else dictNext();
+/* 回车状态机：第一次=锁定当前并切换；第二次=提交批改；已提交=下一个 */
+function dictEnter(part){
+  if(dictResults[dictIdx]){dictNext();return;}
+  const otherLocked=part==="en"?lockedZh:lockedEn;
+  if(otherLocked){submitDict();return;}
+  lockPart(part);
+  (part==="en"?$("#dictZh"):$("#dictEn")).focus();
 }
-$("#dictEn").addEventListener("keydown",e=>{if(e.key==="Enter"&&!$("#dictEn").disabled){e.preventDefault();enterOrNext();}});
-$("#dictZh").addEventListener("keydown",e=>{if(e.key==="Enter"&&!$("#dictZh").disabled){e.preventDefault();enterOrNext();}});
+$("#dictEn").addEventListener("keydown",e=>{if(e.key==="Enter"&&!$("#dictEn").disabled){e.preventDefault();dictEnter("en");}});
+$("#dictZh").addEventListener("keydown",e=>{if(e.key==="Enter"&&!$("#dictZh").disabled){e.preventDefault();dictEnter("zh");}});
 $("#dictEn").addEventListener("focus",()=>{if(!dictResults[dictIdx])switchPart("en");});
 $("#dictZh").addEventListener("focus",()=>{if(!dictResults[dictIdx])switchPart("zh");});
-$("#dictSubmit").addEventListener("click",enterOrNext);
+$("#dictSubmit").addEventListener("click",()=>{
+  if(dictResults[dictIdx]){dictNext();return;}
+  submitDict();
+});
 $("#dictPrev").addEventListener("click",()=>{if(dictIdx>0){dictIdx--;renderDictation();}});
 function enterWriting(){
   dictStarted=false;go("writing");
 }
 
 /* ================= 考察 · 默写 ================= */
-let writQueue=[],writIdx=0,writStarted=false,writResults=[];
+let writQueue=[],writIdx=0,writStarted=false,writResults=[],writLocked=false;
 function startWriting(){
-  writStarted=true;writQueue=[...WRIT_SET];writIdx=0;writResults=[];renderWriting();
+  writStarted=true;writQueue=[...WRIT_SET];writIdx=0;writResults=[];writLocked=false;renderWriting();
 }
 function renderWriting(){
   const w=writQueue[writIdx],res=writResults[writIdx];
@@ -1180,25 +1223,27 @@ function renderWriting(){
   $("#writSubmit").textContent=res?"下一个":"提交";
   if(res){
     en.className="ans-input"+(res.ok?" ok":" bad");
-    setMark("writMark",res.ok,true);
+    setRingBadge("writRing","writBadge",res.ok);
     if(!res.ok){$("#writFix").textContent=w.en;$("#writFix").classList.add("show");}else{$("#writFix").classList.remove("show");}
     $("#writMeter").innerHTML=meterStatic(res.level);
     $("#writMeter").classList.add("show");
-    freezeRing("writRing",res.level);
+    stopRingTick();
+    $("#writSubmit").focus();
   }else{
-    en.className="ans-input";
-    setMark("writMark",false,false);
+    $("#writRing").className="ring2";
     $("#writFix").classList.remove("show");
     $("#writMeter").classList.remove("show");$("#writMeter").innerHTML="";
     $("#writSubmit").textContent="提交";
-    startRing("writRing");
+    enMs=0;zhMs=0;activePart="en";lastTick=Date.now();
+    startRingTick();
     setTimeout(()=>en.focus(),50);
   }
 }
 function submitWriting(){
   if(writResults[writIdx])return;
-  foldTick();
-  const en=$("#writEn"),w=writQueue[writIdx];
+  foldTick();stopRingTick();writLocked=true;
+  const en=$("#writEn");en.disabled=true;
+  const w=writQueue[writIdx];
   const ok=en.value.trim().toLowerCase()===w.en.toLowerCase();
   const level=gradeLevel(ok,enMs);
   const names={4:"Easy",3:"Good",2:"Hard",1:"Forget"};
@@ -1211,8 +1256,8 @@ function writNext(){
   else finishTest();
 }
 function writEnter(){
-  if(!writResults[writIdx])submitWriting();
-  else writNext();
+  if(writResults[writIdx]){writNext();return;}
+  submitWriting();
 }
 $("#writEn").addEventListener("keydown",e=>{
   if(e.key!=="Enter")return;
