@@ -1,7 +1,7 @@
 # ISSUE-008 TTS + 桌面装配收口
 
-**前置依赖**：ISSUE-005/006/007（消费 Fake 播报的界面全部就位）
-**目标**：真实 TTS 接入 + 全应用依赖组装 + 端到端闭环验证。
+**前置依赖**：ISSUE-005/006/009（消费 Fake 播报的界面全部就位；007 已废弃）
+**目标**：真实 TTS 接入 + 替换全部 Fake + 端到端闭环验证。
 **权威依据**：PRD §4、§6.1–6.3；ADR-0005。
 
 ## 范围
@@ -13,9 +13,9 @@
    - 字母音频永久缓存（26 字母 + 需要的变体，key=text+voice）
    - 整词/词组 LRU 缓存上限 200 条，超限淘汰
    - 缓存命中零网络；首次未命中联网取
-3. **AudioPlayer 实现**：javax.sound（Compose Desktop JVM），支持排队播报段（间隔 0.3/0.5s）、取消当前、清空队列
-4. **装配**：desktopApp main 手动构造完整依赖图（DB → 仓库 → 领域服务 → UI ViewModel），替换全部 Fake
-5. **端到端冒烟**：PRD §2.1–2.6 各节验收标准整表过一遍；性能抽查（PRD §6.1：万词列表、导入 1000 词、播报响应 <2s）
+3. **AudioPlayer 实现**：javax.sound（Compose Desktop JVM），支持排队播报段（段间 0.5s、字母间 0.3s，PRD §4.3）、取消当前、清空队列
+4. **装配**：导航骨架与依赖图已在 ISSUE-004 就位（VocabuApp：DB → 仓库 → 领域服务 → UI ViewModel）；本步**仅替换 Fake**——TtsClient/AudioPlayer 从 Fake 换为真实实现（main.kt 单点替换），并校验批改后自动回放（correctionReplay，ISSUE-009）在真实链路上生效
+5. **端到端冒烟**：PRD §2.1–2.6 各节验收标准整表过一遍；性能抽查（PRD §6.1：万词列表、导入 1000 词 <5s、播报响应 <2s）；统计闭环抽查（DailyStudyLog 经 increment 增量落账，分母=判定数）
 
 ## TDD 关键用例
 
