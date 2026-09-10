@@ -18,6 +18,7 @@ dependencies {
 
     implementation(libs.sqldelight.runtime)
     implementation(libs.sqldelight.sqliteDriver)
+    implementation(libs.poi.ooxml)
     testImplementation(libs.kotlin.test)
 }
 

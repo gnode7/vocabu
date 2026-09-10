@@ -37,6 +37,21 @@ class InMemoryRepositoriesTest {
     }
 
     @Test
+    fun `搜索英文大小写不敏感且中文子串命中`() {
+        val repo = InMemoryWordRepository()
+        repo.add(Word.of("apple", null, "n.", "苹果", ts, ts))
+        repo.add(Word.of("ApplePie", null, null, "苹果派", ts, ts))
+        repo.add(Word.of("banana", null, "n.", "香蕉", ts, ts))
+
+        // 英文：大小写不敏感包含匹配
+        assertEquals(listOf("apple", "ApplePie"), repo.search("APP").map { it.text })
+        // 中文：子串匹配
+        assertEquals(listOf("apple", "ApplePie"), repo.search("苹果").map { it.text })
+        // 无命中
+        assertEquals(emptyList(), repo.search("樱桃"))
+    }
+
+    @Test
     fun `设置仓库单行语义`() {
         val repo = InMemorySettingsRepository()
         assertEquals(20, repo.get().dailyNewWordCount)

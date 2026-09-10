@@ -68,6 +68,22 @@ class PersistenceTest {
     }
 
     @Test
+    fun `搜索英文大小写不敏感中文子串且LIKE通配符被转义`() {
+        wordRepo.add(Word.of("apple", null, "n.", "苹果", ts, ts))
+        wordRepo.add(Word.of("ApplePie", null, null, "苹果派", ts, ts))
+        wordRepo.add(Word.of("banana", null, null, "香蕉", ts, ts))
+        wordRepo.add(Word.of("a_b", null, null, "下划线词", ts, ts))
+
+        // 英文大小写不敏感
+        assertEquals(listOf("apple", "ApplePie"), wordRepo.search("APP").map { it.text })
+        // 中文子串
+        assertEquals(listOf("apple", "ApplePie"), wordRepo.search("苹果").map { it.text })
+        // LIKE 通配符按字面匹配：% 和 _ 不当通配符用
+        assertEquals(listOf("a_b"), wordRepo.search("a_b").map { it.text })
+        assertEquals(emptyList(), wordRepo.search("axb"))
+    }
+
+    @Test
     fun `删除词条`() {
         val a = wordRepo.add(newWord("apple"))
         wordRepo.delete(a.id)

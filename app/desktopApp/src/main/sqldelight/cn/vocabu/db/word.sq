@@ -35,5 +35,5 @@ SELECT * FROM word WHERE text = ? COLLATE NOCASE LIMIT 1;
 
 searchWords:
 SELECT * FROM word
-WHERE text LIKE ? OR translation LIKE ?
+WHERE text LIKE ? ESCAPE '\' OR translation LIKE ? ESCAPE '\'
 ORDER BY id;

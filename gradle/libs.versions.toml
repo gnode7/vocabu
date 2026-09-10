@@ -17,6 +17,7 @@ kotlinx-coroutines = "1.11.0"
 ktor = "3.5.2"
 logback = "1.6.3"
 material3 = "1.11.0-alpha07"
+poi = "5.4.1"
 sqldelight = "2.3.2"
 
 [libraries]
@@ -40,6 +41,7 @@ compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-previ
 kotlinx-coroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 sqldelight-runtime = { module = "app.cash.sqldelight:runtime", version.ref = "sqldelight" }
 sqldelight-sqliteDriver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
+poi-ooxml = { module = "org.apache.poi:poi-ooxml", version.ref = "poi" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 ktor-serverCore = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
 ktor-serverNetty = { module = "io.ktor:ktor-server-netty-jvm", version.ref = "ktor" }

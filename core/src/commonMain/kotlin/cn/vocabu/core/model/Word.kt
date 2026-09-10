@@ -16,7 +16,7 @@ data class Word(
     val updatedAt: Instant,
 ) {
     companion object {
-        /** 构造词条：自动计算 isPhrase（导入/添加/编辑保存时派生）。 */
+        /** 构造词条：自动计算 isPhrase（导入/添加/编辑保存时派生）；词组的 pos 强制 null（PRD §5.1）。 */
         fun of(
             text: String,
             phonetic: String?,
@@ -27,12 +27,13 @@ data class Word(
             id: Long = 0,
         ): Word {
             val trimmed = text.trim()
+            val isPhrase = trimmed.any { it.isWhitespace() }
             return Word(
                 id = id,
                 text = trimmed,
-                isPhrase = trimmed.any { it.isWhitespace() },
+                isPhrase = isPhrase,
                 phonetic = phonetic?.trim()?.ifEmpty { null },
-                pos = pos?.trim()?.ifEmpty { null },
+                pos = if (isPhrase) null else pos?.trim()?.ifEmpty { null },
                 translation = translation.trim(),
                 createdAt = createdAt,
                 updatedAt = updatedAt,
