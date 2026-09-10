@@ -1,5 +1,7 @@
 package cn.vocabu.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -321,10 +323,14 @@ private fun EmptyStateCard(vm: WordbookViewModel) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun WordRow(vm: WordbookViewModel, word: Word) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        // 双击行 = 编辑（v1.2 §2.1.2「点击编辑按钮或双击行」）
+        Modifier.fillMaxWidth()
+            .combinedClickable(onClick = {}, onDoubleClick = { vm.editing = word })
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(
