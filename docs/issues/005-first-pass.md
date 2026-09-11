@@ -24,4 +24,4 @@
 ## 验收
 
 - [ ] PRD §2.3 验收标准逐条手动冒烟通过
-- [ ] 播报脚本单测全绿
+- [x] 播报脚本单测全绿（SpeechScriptTest / SpeechControllerTest / BrowseSelectionTest，2026-09-11）

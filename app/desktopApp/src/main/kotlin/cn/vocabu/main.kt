@@ -4,8 +4,10 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import cn.vocabu.core.fake.FakeAudioPlayer
 import cn.vocabu.core.fake.FakeTtsClient
+import cn.vocabu.core.audio.SpeechController
 import cn.vocabu.core.io.ExcelReader
 import cn.vocabu.core.io.FilePicker
+import cn.vocabu.core.logic.SpeechScriptBuilder
 import cn.vocabu.core.logic.WordbookImporter
 import cn.vocabu.core.model.Word
 import cn.vocabu.data.LearningRecordRepositoryImpl
@@ -33,14 +35,15 @@ fun main() = application {
     val ttsClient = FakeTtsClient()
     val audioPlayer = FakeAudioPlayer()
 
+    // 播控装配（ISSUE-005）：脚本组装 + TTS 取段 + 入队停顿；真实 TTS/播放器在 ISSUE-008，当前 Fake 静默
+    val speechController = SpeechController(ttsClient, audioPlayer)
+
     val homeViewModel = HomeViewModel(
         words = wordRepository,
         records = learningRecordRepository,
         settings = settingsRepository,
-        speak = { word: Word ->
-            audioPlayer.clear()
-            ttsClient.fetch(word.text, cn.vocabu.core.audio.TtsVoice.AMERICAN)?.let { audioPlayer.enqueue(it) }
-        },
+        speak = { word: Word -> speechController.speak(SpeechScriptBuilder.build(word, settingsRepository.get())) },
+        stopSpeak = { speechController.stop() },
         now = { Instant.fromEpochSeconds(System.currentTimeMillis() / 1000) },
     )
     val wordbookViewModel = WordbookViewModel(
