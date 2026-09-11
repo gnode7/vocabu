@@ -23,5 +23,5 @@
 
 ## 验收
 
-- [ ] PRD §2.3 验收标准逐条手动冒烟通过
+- [x] PRD §2.3 验收标准逐条手动冒烟通过（用户实机 2026-09-12：分组/折叠/键盘选择/播报提示/设置联动全过；无声音为预期，真实 TTS 在 ISSUE-008）
 - [x] 播报脚本单测全绿（SpeechScriptTest / SpeechControllerTest / BrowseSelectionTest，2026-09-11）
