@@ -47,6 +47,7 @@ class WordbookScreenSurfaceTest {
             excelReader = reader,
             filePicker = object : FilePicker {
                 override fun pickExcelFile(): String? = null
+                override fun saveImportTemplate(defaultName: String): String? = null
             },
             now = { Instant.fromEpochSeconds(1_700_000_000) },
         )

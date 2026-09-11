@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import cn.vocabu.core.io.ExcelReader
 import cn.vocabu.core.io.FilePicker
 import cn.vocabu.core.logic.ImportReport
+import cn.vocabu.core.logic.ImportTemplate
 import cn.vocabu.core.logic.TodayListBuilder
 import cn.vocabu.core.logic.WordbookImporter
 import cn.vocabu.core.model.Word
@@ -200,6 +201,12 @@ class WordbookViewModel(
         importReport = null
     }
 
+    /** 模板下载（v1.2 #25）：另存为对话框（默认 vocabu-import-template.xlsx）→ 运行时生成；取消则无动作。 */
+    fun downloadTemplate() {
+        val path = filePicker.saveImportTemplate(ImportTemplate.DEFAULT_FILE_NAME) ?: return
+        message = "模板已保存：$path，可直接填写内容后导入"
+    }
+
     /** 当前可见词条：搜索（空=全部）→ 词性筛选 → 排序（PRD §2.1.2）。 */
     fun currentList(): List<Word> {
         val base = if (query.isBlank()) words.getAll() else words.search(query.trim())
@@ -238,6 +245,7 @@ fun WordbookScreen(vm: WordbookViewModel) {
             )
             SortButton(vm)
             PosFilterButton(vm)
+            OutlinedButton(onClick = { vm.downloadTemplate() }) { Text("下载模板") }
             Button(onClick = { vm.startImport() }) { Text("导入 Excel") }
             Button(onClick = { vm.editing = vm.newDraft("") }) { Text("添加单词") }
         }

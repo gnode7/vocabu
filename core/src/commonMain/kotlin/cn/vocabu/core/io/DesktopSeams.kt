@@ -16,4 +16,10 @@ interface ExcelReader {
 interface FilePicker {
     /** 弹出 .xlsx 选择对话框；用户取消返回 null。 */
     fun pickExcelFile(): String?
+
+    /**
+     * 弹出另存为对话框（默认文件名 defaultName），运行时生成导入模板并写入所选路径（v1.2 #25）。
+     * 用户取消或写入失败返回 null（不抛异常到 UI 层）。
+     */
+    fun saveImportTemplate(defaultName: String): String?
 }
