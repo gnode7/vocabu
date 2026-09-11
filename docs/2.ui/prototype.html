@@ -554,6 +554,10 @@ body{
           <input id="wbSearch" type="text" placeholder="搜索英文或中文释义" aria-label="搜索词条">
         </div>
         <span style="flex:1"></span>
+        <button class="btn ghost" id="wbTpl">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>
+          下载模板
+        </button>
         <button class="btn" id="wbImport">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>
           导入 Excel
@@ -1331,6 +1335,8 @@ $("#wordSave").addEventListener("click",()=>{
   $("#ovWord").classList.remove("show");
   toast("已保存 · "+(pos==="phr."?"判定为词组":"判定为单词"));
 });
+/* 模板下载 */
+$("#wbTpl").addEventListener("click",()=>toast("已另存为 vocabu-import-template.xlsx（表头 + 示例行）· 修改内容后可直接导入"));
 /* 导入 */
 $("#wbImport").addEventListener("click",()=>{
   const b=$("#wbImport");if(b.disabled)return;
