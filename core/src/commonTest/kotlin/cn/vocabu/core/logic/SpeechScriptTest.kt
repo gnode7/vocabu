@@ -1,6 +1,7 @@
 package cn.vocabu.core.logic
 
 import cn.vocabu.core.model.AppSettings
+import cn.vocabu.core.model.Facet
 import cn.vocabu.core.model.Word
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -111,5 +112,49 @@ class SpeechScriptTest {
     fun `词组关闭读音 只剩翻译`() {
         val segs = SpeechScriptBuilder.build(phrase(), AppSettings(phrasePlayPronunciation = false))
         assertEquals(listOf("期待"), segs.map { it.text })
+    }
+
+    // ---- 回忆会话（ISSUE-006；PRD §2.4.2 / §2.4.3）----
+
+    @Test
+    fun `回忆英中单词 默认读音加拼写`() {
+        val segs = SpeechScriptBuilder.buildRecall(word("apple"), Facet.EN2ZH, AppSettings())
+        assertEquals(listOf("apple", "A", "P", "P", "L", "E"), segs.map { it.text })
+    }
+
+    @Test
+    fun `回忆英中单词 关拼写只剩读音`() {
+        val s = AppSettings(recallEn2ZhWordPlaySpelling = false)
+        val segs = SpeechScriptBuilder.buildRecall(word(), Facet.EN2ZH, s)
+        assertEquals(listOf("apple"), segs.map { it.text })
+    }
+
+    @Test
+    fun `回忆英中词组 默认只有读音 不播中文`() {
+        val segs = SpeechScriptBuilder.buildRecall(phrase(), Facet.EN2ZH, AppSettings())
+        assertEquals(listOf("look forward to"), segs.map { it.text })
+        assertTrue(segs.all { it.lang == SpeechLang.EN })
+    }
+
+    @Test
+    fun `回忆英中词组 开翻译可播中文`() {
+        val s = AppSettings(recallEn2ZhPhrasePlayTranslation = true)
+        val segs = SpeechScriptBuilder.buildRecall(phrase(), Facet.EN2ZH, s)
+        assertEquals(listOf("look forward to", "期待"), segs.map { it.text })
+        assertEquals(SpeechLang.ZH, segs[1].lang)
+    }
+
+    @Test
+    fun `回忆中英 默认不播报`() {
+        val segs = SpeechScriptBuilder.buildRecall(word(), Facet.ZH2EN, AppSettings())
+        assertTrue(segs.isEmpty())
+    }
+
+    @Test
+    fun `回忆中英 开默认播报只播英文读音`() {
+        val segs = SpeechScriptBuilder.buildRecall(word(), Facet.ZH2EN, AppSettings(recallZh2EnAutoPlay = true))
+        assertEquals(listOf("apple"), segs.map { it.text })
+        assertEquals(SpeechLang.EN, segs[0].lang)
+        assertEquals(0L, segs[0].pauseAfterMillis)
     }
 }

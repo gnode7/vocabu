@@ -9,6 +9,7 @@ import cn.vocabu.core.io.ExcelReader
 import cn.vocabu.core.io.FilePicker
 import cn.vocabu.core.logic.SpeechScriptBuilder
 import cn.vocabu.core.logic.WordbookImporter
+import cn.vocabu.core.model.Facet
 import cn.vocabu.core.model.Word
 import cn.vocabu.data.LearningRecordRepositoryImpl
 import cn.vocabu.data.SettingsRepositoryImpl
@@ -18,6 +19,7 @@ import cn.vocabu.data.WordRepositoryImpl
 import cn.vocabu.platform.AwtFilePicker
 import cn.vocabu.platform.PoiExcelReader
 import cn.vocabu.ui.HomeViewModel
+import cn.vocabu.ui.RecallViewModel
 import cn.vocabu.ui.SettingsViewModel
 import cn.vocabu.ui.VocabuApp
 import cn.vocabu.ui.WordbookViewModel
@@ -57,13 +59,24 @@ fun main() = application {
     )
     val settingsViewModel = SettingsViewModel(settingsRepository)
 
-    @Suppress("UNUSED_EXPRESSION")
-    studyLogRepository // ISSUE-006/007 落账使用
+    // 回忆会话装配（ISSUE-006）：方向相关脚本组装在装配层；本地日期供每日统计落账
+    val recallViewModel = RecallViewModel(
+        words = wordRepository,
+        records = learningRecordRepository,
+        settings = settingsRepository,
+        studyLog = studyLogRepository,
+        speak = { word: Word, facet: Facet ->
+            speechController.speak(SpeechScriptBuilder.buildRecall(word, facet, settingsRepository.get()))
+        },
+        stopSpeak = { speechController.stop() },
+        now = { Instant.fromEpochSeconds(System.currentTimeMillis() / 1000) },
+        today = { java.time.LocalDate.now().toString() },
+    )
 
     Window(
         onCloseRequest = ::exitApplication,
         title = "Vocabu",
     ) {
-        VocabuApp(homeViewModel, wordbookViewModel, settingsViewModel)
+        VocabuApp(homeViewModel, wordbookViewModel, settingsViewModel, recallViewModel)
     }
 }

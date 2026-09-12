@@ -1,6 +1,7 @@
 package cn.vocabu.core.logic
 
 import cn.vocabu.core.model.AppSettings
+import cn.vocabu.core.model.Facet
 import cn.vocabu.core.model.Word
 
 /** 播报语言（PRD §4.2：英文语音 / 中文语音）。 */
@@ -32,6 +33,40 @@ object SpeechScriptBuilder {
 
     fun build(word: Word, settings: AppSettings): List<SpeechSegment> {
         return if (word.isPhrase) phraseScript(word, settings) else wordScript(word, settings)
+    }
+
+    /**
+     * 回忆会话播报（ISSUE-006；PRD §2.4.2、§2.4.3）：
+     * - 英→中：单词 = 读音 +（可选）字母拼写；词组 = 读音 +（可选）中文翻译（默认关）。
+     * - 中→英：仅当「中→英-默认播报」开启时播英文读音（无拼写、无中文）。
+     */
+    fun buildRecall(word: Word, facet: Facet, settings: AppSettings): List<SpeechSegment> {
+        val segments = mutableListOf<SpeechSegment>()
+        when (facet) {
+            Facet.EN2ZH -> {
+                if (word.text.isNotBlank()) {
+                    segments += SpeechSegment(word.text, SpeechLang.EN, SEGMENT_PAUSE_MS)
+                }
+                if (word.isPhrase) {
+                    if (settings.recallEn2ZhPhrasePlayTranslation && word.translation.isNotBlank()) {
+                        segments += SpeechSegment(word.translation, SpeechLang.ZH, SEGMENT_PAUSE_MS)
+                    }
+                } else if (settings.recallEn2ZhWordPlaySpelling) {
+                    word.text.forEach { ch ->
+                        segments += SpeechSegment(ch.uppercaseChar().toString(), SpeechLang.EN, LETTER_PAUSE_MS)
+                    }
+                }
+            }
+
+            Facet.ZH2EN -> {
+                if (settings.recallZh2EnAutoPlay && word.text.isNotBlank()) {
+                    segments += SpeechSegment(word.text, SpeechLang.EN, SEGMENT_PAUSE_MS)
+                }
+            }
+
+            Facet.AUDIO_SPELLING -> Unit // 听拼面不参与回忆会话（ADR 0006）
+        }
+        return segments.trimTailPause()
     }
 
     private fun wordScript(word: Word, settings: AppSettings): List<SpeechSegment> {

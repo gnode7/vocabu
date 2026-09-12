@@ -39,6 +39,7 @@ fun VocabuApp(
     homeViewModel: HomeViewModel,
     wordbookViewModel: WordbookViewModel,
     settingsViewModel: SettingsViewModel,
+    recallViewModel: RecallViewModel,
 ) {
     var screen by remember { mutableStateOf<Screen>(Screen.Browse) }
 
@@ -66,7 +67,7 @@ fun VocabuApp(
 
             when (screen) {
                 Screen.Browse -> HomeScreen(homeViewModel)
-                Screen.Recall -> SessionPlaceholder("回忆会话", "英→中 / 中→英 / 混合，按设置的回忆方向执行") { screen = Screen.Browse }
+                Screen.Recall -> RecallScreen(recallViewModel) { screen = Screen.Browse }
                 Screen.Test -> SessionPlaceholder("考察会话", "听写 / 默写 / 混合（先听写后默写），按设置的考察方式执行") { screen = Screen.Browse }
                 Screen.Wordbook -> WordbookScreen(wordbookViewModel)
                 Screen.Settings -> SettingsScreen(settingsViewModel, homeViewModel.todayList().all.size)
