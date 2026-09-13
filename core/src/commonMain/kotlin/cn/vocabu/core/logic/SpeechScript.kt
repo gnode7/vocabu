@@ -69,6 +69,44 @@ object SpeechScriptBuilder {
         return segments.trimTailPause()
     }
 
+    /**
+     * 听写会话播报（ISSUE-009；PRD §2.5.2）：仅播单词读音。
+     * 不拼字母、不播中文——否则直接泄题；计时不因脚本长度变化（计时起点=播报结束，播报失败回退展示时刻）。
+     */
+    fun buildDictation(word: Word): List<SpeechSegment> =
+        if (word.text.isBlank()) emptyList()
+        else listOf(SpeechSegment(word.text, SpeechLang.EN, 0))
+
+    /**
+     * 考察答错自动回放（ISSUE-009；PRD §2.5.2、修订 #11、设置 correctionReplay）：
+     * 英文面错 = 读音 + 字母拼写（词组 = 读音 + 中文翻译，同通览脚本）；中文面错 = 释义。
+     * 多面同错按 中→英 顺序拼接，一次播完。
+     */
+    fun buildCorrectionReplay(word: Word, wrongFacets: List<Facet>, settings: AppSettings): List<SpeechSegment> {
+        val segments = mutableListOf<SpeechSegment>()
+        wrongFacets.forEach { facet ->
+            when (facet) {
+                Facet.EN2ZH -> {
+                    if (word.translation.isNotBlank()) {
+                        segments += SpeechSegment(word.translation, SpeechLang.ZH, SEGMENT_PAUSE_MS)
+                    }
+                }
+
+                Facet.AUDIO_SPELLING, Facet.ZH2EN -> {
+                    if (word.text.isNotBlank()) {
+                        segments += SpeechSegment(word.text, SpeechLang.EN, SEGMENT_PAUSE_MS)
+                        if (!word.isPhrase) {
+                            word.text.forEach { ch ->
+                                segments += SpeechSegment(ch.uppercaseChar().toString(), SpeechLang.EN, LETTER_PAUSE_MS)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return segments.trimTailPause()
+    }
+
     private fun wordScript(word: Word, settings: AppSettings): List<SpeechSegment> {
         val segments = mutableListOf<SpeechSegment>()
         if (settings.wordPlayPronunciation && word.text.isNotBlank()) {

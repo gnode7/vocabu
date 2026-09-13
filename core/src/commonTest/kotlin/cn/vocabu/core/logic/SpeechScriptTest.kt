@@ -157,4 +157,36 @@ class SpeechScriptTest {
         assertEquals(SpeechLang.EN, segs[0].lang)
         assertEquals(0L, segs[0].pauseAfterMillis)
     }
+
+    // ---- 考察（ISSUE-009；PRD §2.5.2、修订 #11）----
+
+    @Test
+    fun `听写播报_仅读音不拼字母不播中文`() {
+        val segs = SpeechScriptBuilder.buildDictation(word())
+        assertEquals(listOf("apple"), segs.map { it.text })
+        assertEquals(SpeechLang.EN, segs[0].lang)
+        assertEquals(0L, segs[0].pauseAfterMillis) // 播完即计时（起点=播报结束）
+    }
+
+    @Test
+    fun `听写播报_词组同样仅读音`() {
+        val segs = SpeechScriptBuilder.buildDictation(phrase())
+        assertEquals(listOf("look forward to"), segs.map { it.text })
+    }
+
+    @Test
+    fun `答错回放_英面读音加拼写_中面仅释义_中先英后`() {
+        val s = AppSettings()
+        val segs = SpeechScriptBuilder.buildCorrectionReplay(word(), listOf(Facet.EN2ZH, Facet.AUDIO_SPELLING), s)
+        // 中文面 = 释义；英文面 = 读音 + 逐字母拼写
+        assertEquals(listOf("苹果", "apple", "A", "P", "P", "L", "E"), segs.map { it.text })
+        assertEquals(SpeechLang.ZH, segs[0].lang)
+        assertEquals(0L, segs.last().pauseAfterMillis) // 末段无停顿
+    }
+
+    @Test
+    fun `答错回放_默写英文面同样读音加拼写`() {
+        val segs = SpeechScriptBuilder.buildCorrectionReplay(word(), listOf(Facet.ZH2EN), AppSettings())
+        assertEquals(listOf("apple", "A", "P", "P", "L", "E"), segs.map { it.text })
+    }
 }

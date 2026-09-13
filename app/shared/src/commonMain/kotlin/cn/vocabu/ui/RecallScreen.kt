@@ -539,15 +539,15 @@ private fun PeekCell(
     }
 }
 
-/** 评级色（PRD §2.4.2：红=忘 / 橘=困难 / 黄=记得 / 绿=熟练）。 */
-private fun ratingColor(rating: Rating): Color = when (rating) {
+/** 评级色（PRD §2.4.2：红=忘 / 橘=困难 / 黄=记得 / 绿=熟练）；考察屏 RatingStrip 复用。 */
+internal fun ratingColor(rating: Rating): Color = when (rating) {
     Rating.FORGET -> Color(0xFFDD5A4C)
     Rating.HARD -> Color(0xFFF0993E)
     Rating.GOOD -> Color(0xFFE4C441)
     Rating.EASY -> Color(0xFF59B96A)
 }
 
-private val RATING_ORDER = listOf(Rating.FORGET, Rating.HARD, Rating.GOOD, Rating.EASY)
+internal val RATING_ORDER = listOf(Rating.FORGET, Rating.HARD, Rating.GOOD, Rating.EASY)
 
 private val RATING_TIP = mapOf(
     Rating.FORGET to "忘记 [1]",

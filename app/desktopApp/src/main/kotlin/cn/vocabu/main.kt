@@ -8,6 +8,7 @@ import cn.vocabu.core.audio.SpeechController
 import cn.vocabu.core.io.ExcelReader
 import cn.vocabu.core.io.FilePicker
 import cn.vocabu.core.logic.SpeechScriptBuilder
+import cn.vocabu.core.logic.SpeechSegment
 import cn.vocabu.core.logic.WordbookImporter
 import cn.vocabu.core.model.Facet
 import cn.vocabu.core.model.Word
@@ -20,6 +21,7 @@ import cn.vocabu.platform.AwtFilePicker
 import cn.vocabu.platform.PoiExcelReader
 import cn.vocabu.ui.HomeViewModel
 import cn.vocabu.ui.RecallViewModel
+import cn.vocabu.ui.TestViewModel
 import cn.vocabu.ui.SettingsViewModel
 import cn.vocabu.ui.VocabuApp
 import cn.vocabu.ui.WordbookViewModel
@@ -73,10 +75,24 @@ fun main() = application {
         today = { java.time.LocalDate.now().toString() },
     )
 
+    // 考察会话装配（ISSUE-009）：听写脚本（仅读音）与答错回放在脚本构建器组装；
+    // 告警音接缝由 ISSUE-008 实现真实音效，Fake 阶段静默
+    val testViewModel = TestViewModel(
+        words = wordRepository,
+        records = learningRecordRepository,
+        settings = settingsRepository,
+        studyLog = studyLogRepository,
+        speak = { segments: List<SpeechSegment> -> speechController.speak(segments) },
+        stopSpeak = { speechController.stop() },
+        errorCue = { /* TODO ISSUE-008: 短促告警音 */ },
+        now = { Instant.fromEpochSeconds(System.currentTimeMillis() / 1000) },
+        today = { java.time.LocalDate.now().toString() },
+    )
+
     Window(
         onCloseRequest = ::exitApplication,
         title = "Vocabu",
     ) {
-        VocabuApp(homeViewModel, wordbookViewModel, settingsViewModel, recallViewModel)
+        VocabuApp(homeViewModel, wordbookViewModel, settingsViewModel, recallViewModel, testViewModel)
     }
 }
