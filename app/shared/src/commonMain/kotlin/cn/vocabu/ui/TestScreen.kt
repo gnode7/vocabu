@@ -539,10 +539,14 @@ private fun RatingStrip(rating: Rating?) {
 private fun TestFooter(vm: TestViewModel, item: cn.vocabu.core.logic.TestItem) {
     val judged = item.zhJudgment != null || item.enJudgment != null
     val blockTab = Modifier.onPreviewKeyEvent { e -> e.type == KeyEventType.KeyDown && e.key == Key.Tab }
+    val nextFocus = remember { FocusRequester() }
+    // 批改后焦点移交「下一个」按钮（兑现 core submit/prev 置 focusedBox=null 的设计）：
+    // 输入框 disabled 释放焦点，焦点落按钮后 Enter 走 onClick = next()
+    LaunchedEffect(judged) { if (judged) nextFocus.requestFocus() }
     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         TextButton(onClick = { vm.prev() }, enabled = vm.session?.cursor ?: 0 > 0, modifier = blockTab) { Text("上一个") }
         Spacer(Modifier.weight(1f))
-        Button(onClick = { if (judged) vm.next() else vm.submit() }, modifier = blockTab) {
+        Button(onClick = { if (judged) vm.next() else vm.submit() }, modifier = blockTab.focusRequester(nextFocus)) {
             Text(if (judged) "下一个" else "提交")
         }
     }
