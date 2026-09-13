@@ -185,8 +185,14 @@ class SpeechScriptTest {
     }
 
     @Test
-    fun `答错回放_默写英文面同样读音加拼写`() {
+    fun `答错回放_默写答错仅读音不拼字母`() {
         val segs = SpeechScriptBuilder.buildCorrectionReplay(word(), listOf(Facet.ZH2EN), AppSettings())
-        assertEquals(listOf("apple", "A", "P", "P", "L", "E"), segs.map { it.text })
+        assertEquals(listOf("apple"), segs.map { it.text }) // PRD §2.5.3 流程3：默写答错只回放读音
+    }
+
+    @Test
+    fun `答错回放_词组听写仅读音不拼字母不播中文`() {
+        val segs = SpeechScriptBuilder.buildCorrectionReplay(phrase(), listOf(Facet.AUDIO_SPELLING), AppSettings())
+        assertEquals(listOf("look forward to"), segs.map { it.text })
     }
 }

@@ -263,7 +263,64 @@ class TestSessionTest {
         assertEquals(1, delta.newWordsLearned)
     }
 
+    @Test
+    fun `落账_轮末重考不重复计新学_重考计复习`() {
+        var s = TestSessionBuilder.build(listOf(word(1)), emptyMap(), "dictation", Random(1), t0)
+        // 第一轮：两框留空全 Forget → 两面均首次创建记录 = 新学
+        val out = TestSessionOps.submit(s, 5, 10, t0, ::sm2)!!
+        assertEquals(2, TestSessionOps.logDelta(out).newWordsLearned)
+        s = out.session
+        s = TestSessionOps.next(s, t0, Random(1))
+        assertTrue(s.finished) // t0 时刻 Forget(+60s) 未到期
+        // 61s 后重查进入新轮（整词重考）→ 重考提交 = update 不是 create
+        s = TestSessionOps.advance(s.copy(finished = false), t0 + 61.seconds, Random(1))
+        assertEquals(2, s.roundNo)
+        s = TestSessionOps.type(s, TestBox.ZH, "释义1")
+        s = TestSessionOps.type(s, TestBox.EN, "word1")
+        val reOut = TestSessionOps.submit(s, 5, 10, t0 + 61.seconds, ::sm2)!!
+        val delta = TestSessionOps.logDelta(reOut)
+        assertEquals(0, delta.newWordsLearned) // 重考不重复计新学
+        assertEquals(2, delta.wordsReviewed)
+        assertEquals(2, delta.totalJudgments)
+    }
+
     // ---- 混合编排与轮末循环（PRD §2.5.3）----
+
+    @Test
+    fun `混合编排_听写段循环完毕才进默写_错词先重现`() {
+        // 词 1：仅听拼到期 → 只进听写部分；词 2：仅中英到期 → 只进默写部分
+        val words = listOf(word(1, text = "apple"), word(2, text = "bee"))
+        val records = recordsByWord(
+            record(1, Facet.AUDIO_SPELLING, nextReview = t0),
+            record(1, Facet.EN2ZH, nextReview = t0 + 3600.seconds),
+            record(1, Facet.ZH2EN, nextReview = t0 + 3600.seconds),
+            record(2, Facet.AUDIO_SPELLING, nextReview = t0 + 3600.seconds),
+            record(2, Facet.EN2ZH, nextReview = t0 + 3600.seconds),
+            record(2, Facet.ZH2EN, nextReview = t0),
+        )
+        var s = TestSessionBuilder.build(words, records, "mixed", Random(3), t0)
+        assertEquals(2, s.queue.size)
+        assertEquals(TestPart.DICTATION, s.queue.first().part)
+        assertEquals(TestPart.WRITING, s.queue.last().part)
+        // 听写词答错：两框留空全 Forget
+        s = TestSessionOps.submit(s, 5, 10, t0, ::sm2)!!.session
+        // 61s 后按「下一个」：跨界检查捞起到期 Forget → 听写错词先重现，默写词排新轮后段
+        s = TestSessionOps.next(s, t0 + 61.seconds, Random(1))
+        assertEquals(2, s.roundNo)
+        assertEquals(2, s.queue.size) // 重考词在前 + 未开始的默写词在后
+        assertEquals(1L, s.currentItem!!.word.id)
+        assertEquals(TestPart.DICTATION, s.currentItem!!.part)
+        assertNull(s.currentItem!!.zhJudgment) // 整词重考：判定清空
+        assertEquals(TestBox.ZH, s.focusedBox)
+        // 重考答对 → 无感进入默写段
+        s = TestSessionOps.type(s, TestBox.ZH, "释义1")
+        s = TestSessionOps.type(s, TestBox.EN, "apple")
+        s = TestSessionOps.submit(s, 5, 10, t0 + 61.seconds, ::sm2)!!.session
+        s = TestSessionOps.next(s, t0 + 61.seconds, Random(1))
+        assertEquals(2L, s.currentItem!!.word.id)
+        assertEquals(TestPart.WRITING, s.currentItem!!.part)
+        assertEquals(TestBox.EN, s.focusedBox)
+    }
 
     @Test
     fun `混合编排_听写耗尽接默写_无遗忘到期则结束`() {

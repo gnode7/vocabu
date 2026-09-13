@@ -21,8 +21,9 @@ import kotlin.time.Instant
  * 默写：单输入，回车或按钮即提交。
  *
  * 提交即落账：每词批改立刻产出各面 SM-2 记录与当日统计增量（分母 = 判定数，听写计 2）。
- * 轮末检查：会话内 Forget 面（+60s）到期 → 该词**整词重考**（两面同判同落账，作答/
- * 锁定/计时/批改全清），洗牌开新轮；无到期面则结束，已结束的会话不复活。
+ * 轮末检查（部内）：**听写部分轮次循环结束后才进默写**（跨界检查听写段到期面，复活词排在新轮
+ * 前段、未开始的默写词殿后）；队列末尾只查末段。Forget 面（+60s）到期 → 该词**整词重考**
+ * （两面同判同落账，作答/锁定/计时/批改全清），洗牌开新轮；无到期面则结束，已结束的会话不复活。
  * 上一个/下一个为只读回看，不重复落账；提交前不可跳过当前词。
  * 计时 = 焦点注意力时间：焦点在哪个框哪个框累计，另一框暂停；锁定/批改后冻结。
  */
@@ -97,8 +98,13 @@ data class TestSession(
     val finished: Boolean = false,
     /** 会话累计判定数（听写每词 2、默写每词 1） */
     val totalJudgments: Int = 0,
+    /** 会话内已落账的 (wordId, facet)——新学/复习口径的实时补充：重考提交不再重复计新学 */
+    val ledgered: Set<Pair<Long, Facet>> = emptySet(),
 ) {
     val currentItem: TestItem? get() = queue.getOrNull(cursor)
+
+    /** 会话去重词数（含已完结轮次；完成面板「共 X 词」口径）。 */
+    val distinctWordCount: Int get() = ledgered.map { it.first }.toSet().size
 
     /** 已完成批改的词数（计量表进度）。 */
     val judgedWords: Int get() = queue.count { it.isJudged() }
@@ -248,7 +254,9 @@ object TestSessionOps {
             }
             val quality = AnswerJudge.qualityFromTiming(correct, elapsed, easyThresholdSeconds, goodThresholdSeconds)
             val facet = testLedgerFacet(item, box)
-            val hadRecord = if (box == TestBox.ZH) item.hadZhRecord else item.hadEnRecord
+            // 新学/复习口径实时判定：构建期快照 ∨ 会话内已落账（重考必为 update，不重复计新学）
+            val hadRecord = (if (box == TestBox.ZH) item.hadZhRecord else item.hadEnRecord) ||
+                session.ledgered.contains(item.word.id to facet)
             PartOutcome(
                 wordId = item.word.id,
                 facet = facet,
@@ -272,7 +280,11 @@ object TestSessionOps {
             enJudgment = enOutcome?.judgment,
         )
         val newSession = session.updateCurrent(updatedItem)
-            .copy(focusedBox = null, totalJudgments = session.totalJudgments + outcomes.size)
+            .copy(
+                focusedBox = null,
+                totalJudgments = session.totalJudgments + outcomes.size,
+                ledgered = session.ledgered + outcomes.map { it.wordId to it.facet },
+            )
         return SubmitOutcome(newSession, outcomes)
     }
 
@@ -290,6 +302,11 @@ object TestSessionOps {
         if (!item.isJudged()) return session // 提交前不可跳过（落账完整性）
         if (session.cursor < session.queue.lastIndex) {
             val target = session.queue[session.cursor + 1]
+            // 混合边界（PRD §2.5.2）：听写部分轮次循环结束后才进默写——跨界先做听写部内轮末检查
+            if (item.part == TestPart.DICTATION && target.part == TestPart.WRITING) {
+                val due = session.queue.filter { it.part == TestPart.DICTATION && isDueForget(it, now) }
+                if (due.isNotEmpty()) return startRound(session, due, random)
+            }
             return session.copy(
                 cursor = session.cursor + 1,
                 focusedBox = if (target.isJudged()) null else session.defaultBox(target),
@@ -307,17 +324,29 @@ object TestSessionOps {
     }
 
     /**
-     * 轮末检查（PRD §2.5.3）：会话内 Forget 面（+60s）到期的词 → **整词重考**（两面同判
-     * 同落账，作答/锁定/计时/批改全清），洗牌开新轮；无到期面则结束。已结束的会话不复活。
+     * 轮末检查（PRD §2.5.3，部内口径 §2.5.2）：队列末尾所在部分内的 Forget 面（+60s）到期的词 →
+     * **整词重考**（两面同判同落账，作答/锁定/计时/批改全清），洗牌开新轮；无到期面则结束。
+     * 已结束的会话不复活。
      */
     fun advance(session: TestSession, now: Instant, random: Random): TestSession {
-        if (session.finished) return session
-        val dueItems = session.queue.filter { item ->
-            listOfNotNull(item.zhJudgment, item.enJudgment).any { judgment ->
-                judgment.rating == Rating.FORGET && judgment.record.nextReviewTime <= now
-            }
-        }
+        if (session.finished || session.queue.isEmpty()) return session.copy(finished = true)
+        // 部内检查：队列末尾段 = 最后推进的部分，只查该段的到期面（听写段已在跨界检查处理）
+        val tailPart = session.queue.last().part
+        val dueItems = session.queue.filter { it.part == tailPart && isDueForget(it, now) }
         if (dueItems.isEmpty()) return session.copy(finished = true)
+        return startRound(session, dueItems, random)
+    }
+
+    // ---- 私有工具 ----
+
+    /** 该词存在 Forget 且已到期（提交 +60s）的判定面 → 部内重考候选。 */
+    private fun isDueForget(item: TestItem, now: Instant): Boolean =
+        listOfNotNull(item.zhJudgment, item.enJudgment).any { judgment ->
+            judgment.rating == Rating.FORGET && judgment.record.nextReviewTime <= now
+        }
+
+    /** 开新轮：到期复活词（洗牌在前）+ 尚未开始的默写词（洗牌在后）——听写段循环完毕才轮到默写。 */
+    private fun startRound(session: TestSession, dueItems: List<TestItem>, random: Random): TestSession {
         val revived = dueItems.map { item ->
             item.copy(
                 zhAnswer = "", enAnswer = "",
@@ -326,17 +355,19 @@ object TestSessionOps {
                 zhJudgment = null, enJudgment = null,
             )
         }.shuffled(random)
+        val pendingWriting = session.queue
+            .filter { it.part == TestPart.WRITING && !it.isJudged() }
+            .shuffled(random)
+        val nextQueue = revived + pendingWriting
         val next = session.copy(
             roundNo = session.roundNo + 1,
-            queue = revived,
+            queue = nextQueue,
             cursor = 0,
             focusedBox = null,
             finished = false,
         )
-        return next.copy(focusedBox = next.defaultBox(revived.first()))
+        return next.copy(focusedBox = next.defaultBox(nextQueue.first()))
     }
-
-    // ---- 私有工具 ----
 
     private fun TestSession.updateCurrent(item: TestItem): TestSession =
         copy(queue = queue.toMutableList().also { it[cursor] = item })

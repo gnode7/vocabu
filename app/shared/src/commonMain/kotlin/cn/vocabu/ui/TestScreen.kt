@@ -264,7 +264,7 @@ fun TestScreen(vm: TestViewModel, onExit: () -> Unit) {
 /** 会话横幅：轮次 · 部分序号 · 判定完成数 · 考察方式。 */
 @Composable
 private fun TestMeter(vm: TestViewModel, s: TestSession) {
-    val judged = s.queue.count { it.zhJudgment != null || it.enJudgment != null }
+    val judged = s.judgedWords // 口径统一走 TestSession.isJudged()（审查顺手项 #1）
     val modeLabel = when (vm.speechSettings().testMode) {
         "dictation" -> "听写"
         "writing" -> "默写"
@@ -367,6 +367,10 @@ private fun WritingPanel(vm: TestViewModel, s: TestSession) {
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Start,
         )
+        // 词性提示（PRD §2.5.3 流程1：展示中文翻译与词性；ADR-0007 同文本不同词性是不同词条）
+        if (item.word.pos.isNotBlank()) {
+            Text(item.word.pos, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+        }
         TestAnswerBox(
             vm = vm,
             box = TestBox.EN,
@@ -530,14 +534,15 @@ private fun RatingStrip(rating: Rating?) {
     }
 }
 
-/** 底部操作区：上一个 / 提交（判定后变「下一个」，回车同效）。 */
+/** 底部操作区：上一个 / 提交（判定后变「下一个」，回车同效）。按钮不进 Tab 链（PRD §2.5.2）。 */
 @Composable
 private fun TestFooter(vm: TestViewModel, item: cn.vocabu.core.logic.TestItem) {
     val judged = item.zhJudgment != null || item.enJudgment != null
+    val blockTab = Modifier.onPreviewKeyEvent { e -> e.type == KeyEventType.KeyDown && e.key == Key.Tab }
     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        TextButton(onClick = { vm.prev() }, enabled = vm.session?.cursor ?: 0 > 0) { Text("上一个") }
+        TextButton(onClick = { vm.prev() }, enabled = vm.session?.cursor ?: 0 > 0, modifier = blockTab) { Text("上一个") }
         Spacer(Modifier.weight(1f))
-        Button(onClick = { if (judged) vm.next() else vm.submit() }) {
+        Button(onClick = { if (judged) vm.next() else vm.submit() }, modifier = blockTab) {
             Text(if (judged) "下一个" else "提交")
         }
     }
@@ -568,7 +573,7 @@ private fun FinishedTestPanel(vm: TestViewModel, onExit: () -> Unit) {
     ) {
         Text("考察完成", fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
-        Text("共 ${s.queue.size} 词 · ${s.totalJudgments} 次判定", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+        Text("共 ${s.distinctWordCount} 词 · ${s.totalJudgments} 次判定", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
         Spacer(Modifier.height(16.dp))
         Button(onClick = onExit) { Text("返回通览") }
     }

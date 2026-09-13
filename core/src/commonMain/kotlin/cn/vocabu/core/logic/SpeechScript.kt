@@ -78,8 +78,8 @@ object SpeechScriptBuilder {
         else listOf(SpeechSegment(word.text, SpeechLang.EN, 0))
 
     /**
-     * 考察答错自动回放（ISSUE-009；PRD §2.5.2、修订 #11、设置 correctionReplay）：
-     * 英文面错 = 读音 + 字母拼写（词组 = 读音 + 中文翻译，同通览脚本）；中文面错 = 释义。
+     * 考察答错自动回放（ISSUE-009；PRD §2.5.2/§2.5.3 流程3、修订 #11、设置 correctionReplay）：
+     * 听写答错 = 读音 + 字母拼写（词组 = 仅读音，PRD 未定义词组拼写回放）；默写答错 = 仅读音（§2.5.3）。
      * 多面同错按 中→英 顺序拼接，一次播完。
      */
     fun buildCorrectionReplay(word: Word, wrongFacets: List<Facet>, settings: AppSettings): List<SpeechSegment> {
@@ -92,7 +92,7 @@ object SpeechScriptBuilder {
                     }
                 }
 
-                Facet.AUDIO_SPELLING, Facet.ZH2EN -> {
+                Facet.AUDIO_SPELLING -> { // 听写答错：读音 + 字母拼写（词组仅读音）
                     if (word.text.isNotBlank()) {
                         segments += SpeechSegment(word.text, SpeechLang.EN, SEGMENT_PAUSE_MS)
                         if (!word.isPhrase) {
@@ -100,6 +100,12 @@ object SpeechScriptBuilder {
                                 segments += SpeechSegment(ch.uppercaseChar().toString(), SpeechLang.EN, LETTER_PAUSE_MS)
                             }
                         }
+                    }
+                }
+
+                Facet.ZH2EN -> { // 默写答错：仅读音（PRD §2.5.3 流程3），不拼字母
+                    if (word.text.isNotBlank()) {
+                        segments += SpeechSegment(word.text, SpeechLang.EN, SEGMENT_PAUSE_MS)
                     }
                 }
             }
