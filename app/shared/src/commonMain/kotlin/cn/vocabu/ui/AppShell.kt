@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,9 +52,12 @@ fun VocabuApp(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    SegButton("通览", screen == Screen.Browse) { screen = Screen.Browse }
-                    SegButton("回忆 ${homeViewModel.recallCount()}", screen == Screen.Recall) { screen = Screen.Recall }
-                    SegButton("考察 ${homeViewModel.testCount()}", screen == Screen.Test) { screen = Screen.Test }
+                    // key(version)：设置保存（bump）后入口计数立即重算（PRD §2.6 计数联动）
+                    key(homeViewModel.version) {
+                        SegButton("通览", screen == Screen.Browse) { screen = Screen.Browse }
+                        SegButton("回忆 ${homeViewModel.recallCount()}", screen == Screen.Recall) { screen = Screen.Recall }
+                        SegButton("考察 ${homeViewModel.testCount()}", screen == Screen.Test) { screen = Screen.Test }
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { screen = Screen.Wordbook }) {
@@ -70,7 +74,7 @@ fun VocabuApp(
                 Screen.Recall -> RecallScreen(recallViewModel) { screen = Screen.Browse }
                 Screen.Test -> SessionPlaceholder("考察会话", "听写 / 默写 / 混合（先听写后默写），按设置的考察方式执行") { screen = Screen.Browse }
                 Screen.Wordbook -> WordbookScreen(wordbookViewModel)
-                Screen.Settings -> SettingsScreen(settingsViewModel, homeViewModel.todayList().all.size)
+                Screen.Settings -> SettingsScreen(settingsViewModel, homeViewModel.todayList().all.size, onSaved = { homeViewModel.bump() })
             }
         }
     }

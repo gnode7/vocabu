@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -465,8 +468,11 @@ private fun RecallRow(
 }
 
 /**
- * 偷看区：被隐藏的一侧。按住显示内容、松开恢复；悬停显示「偷看 Q」提示（PRD §2.4.2）。
+ * 偷看区：被隐藏的一侧。按住显示内容、松开恢复；悬停显示「偷看 Q」悬浮提示（PRD §2.4.2）。
  * 偷看不影响 SM-2（不计入回忆）。
+ * 手势注意：pointerInput 必须**无条件挂载**——若按 revealed 分支增删修饰符，
+ * 按下使 revealed 翻真会立刻移除手势导致按下被取消（内容闪一下就回星号）。
+ * down/up 均消费：偷看不触发行点击（避免松手时误播报），移动不消费（按住拖动仍可滚动列表）。
  */
 @Composable
 private fun PeekCell(
@@ -479,25 +485,17 @@ private fun PeekCell(
     onPeekRelease: () -> Unit,
 ) {
     Box(
-        modifier
-            .then(
-                if (revealed) {
-                    Modifier
-                } else {
-                    Modifier.pointerInput(Unit) {
-                        detectTapGestures(
-                            onPress = {
-                                onPeekPress()
-                                try {
-                                    awaitRelease()
-                                } finally {
-                                    onPeekRelease()
-                                }
-                            },
-                        )
-                    }
-                },
-            ),
+        modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false).consume()
+                onPeekPress()
+                try {
+                    waitForUpOrCancellation()?.consume()
+                } finally {
+                    onPeekRelease()
+                }
+            }
+        },
     ) {
         if (revealed) {
             Text(
@@ -508,21 +506,35 @@ private fun PeekCell(
                 overflow = TextOverflow.Ellipsis,
             )
         } else {
-            // 隐藏态：＊＊＊＊＊＊ 灰字遮罩 + 悬停「偷看 Q」提示（设计稿 .hidden-side）
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // 隐藏态：原文透明占位保列宽 + ＊＊＊＊＊＊ 灰字遮罩（设计稿 .hidden-side）
+            Box {
+                Text(
+                    text,
+                    fontSize = 15.sp,
+                    color = Color.Transparent,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(
                     "＊＊＊＊＊＊",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.align(Alignment.CenterStart),
                 )
-                if (hovered) {
-                    Text(
-                        " 偷看 Q",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.outline,
-                    )
-                }
             }
+        }
+        if (hovered && !revealed) {
+            // 悬停 tooltip：悬浮于隐藏区上方，非行内文字（设计稿 .hidden-side .tip）
+            Text(
+                "偷看 Q",
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = (-20).dp)
+                    .background(MaterialTheme.colorScheme.inverseSurface, RoundedCornerShape(4.dp))
+                    .padding(horizontal = 7.dp, vertical = 2.dp),
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.inverseOnSurface,
+            )
         }
     }
 }

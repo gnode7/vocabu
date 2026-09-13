@@ -109,16 +109,16 @@ class SettingsViewModel(private val settings: SettingsRepository) {
     }
 }
 
-/** 设置屏（设计稿屏 6：分组卡片 + 显式保存按钮）。 */
+/** 设置屏（设计稿屏 6：分组卡片 + 显式保存按钮）。[onSaved] 在保存成功后回调（驱动首页/入口计数刷新）。 */
 @Composable
-fun SettingsScreen(vm: SettingsViewModel, todayTotal: Int) {
+fun SettingsScreen(vm: SettingsViewModel, todayTotal: Int, onSaved: () -> Unit = {}) {
     Column(
         Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("设置", style = MaterialTheme.typography.headlineMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            Button(onClick = { vm.save(todayTotal) }) { Text("保存") }
+            Button(onClick = { vm.save(todayTotal); onSaved() }) { Text("保存") }
         }
         vm.savedMessage?.let {
             Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
