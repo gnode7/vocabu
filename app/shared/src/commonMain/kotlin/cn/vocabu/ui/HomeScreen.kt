@@ -224,55 +224,71 @@ fun HomeScreen(vm: HomeViewModel) {
             }
         }
 
-        GroupSection(
-            title = "新词",
-            entries = today.newWords,
-            tag = TagStyle.New,
-            expanded = expanded[0],
-            onToggle = { expanded = listOf(!expanded[0], expanded[1], expanded[2]) },
-            visible = visible,
-            selectedIndex = selectedIndex,
-            absIndexById = absIndexById,
-            playingWordId = playingWordId,
-            onSelectRow = { i ->
-                // 点击条目 = 选中并播报（PRD §2.3.3 触发方式）
-                selectedIndex = i
-                visible.getOrNull(i)?.let { speakWord(it) }
-            },
-            onSpeak = ::speakWord,
-        )
-        GroupSection(
-            title = "复习",
-            entries = today.reviewWords,
-            tag = TagStyle.Review,
-            expanded = expanded[1],
-            onToggle = { expanded = listOf(expanded[0], !expanded[1], expanded[2]) },
-            visible = visible,
-            selectedIndex = selectedIndex,
-            absIndexById = absIndexById,
-            playingWordId = playingWordId,
-            onSelectRow = { i ->
-                selectedIndex = i
-                visible.getOrNull(i)?.let { speakWord(it) }
-            },
-            onSpeak = ::speakWord,
-        )
-        GroupSection(
-            title = "补查",
-            entries = today.catchUpWords,
-            tag = TagStyle.CatchUp,
-            expanded = expanded[2],
-            onToggle = { expanded = listOf(expanded[0], expanded[1], !expanded[2]) },
-            visible = visible,
-            selectedIndex = selectedIndex,
-            absIndexById = absIndexById,
-            playingWordId = playingWordId,
-            onSelectRow = { i ->
-                selectedIndex = i
-                visible.getOrNull(i)?.let { speakWord(it) }
-            },
-            onSpeak = ::speakWord,
-        )
+        if (today.all.isEmpty()) {
+            // 空词表引导（PRD §2.2.2 特殊情况：明确提示 + 引导去词库添加）
+            Column(
+                Modifier.fillMaxWidth().padding(top = 48.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("今日无学习任务", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "前往顶部「词库」添加或导入单词，开始今天的学习吧。",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            GroupSection(
+                title = "新词",
+                entries = today.newWords,
+                tag = TagStyle.New,
+                expanded = expanded[0],
+                onToggle = { expanded = listOf(!expanded[0], expanded[1], expanded[2]) },
+                visible = visible,
+                selectedIndex = selectedIndex,
+                absIndexById = absIndexById,
+                playingWordId = playingWordId,
+                onSelectRow = { i ->
+                    // 点击条目 = 选中并播报（PRD §2.3.3 触发方式）
+                    selectedIndex = i
+                    visible.getOrNull(i)?.let { speakWord(it) }
+                },
+                onSpeak = ::speakWord,
+            )
+            GroupSection(
+                title = "复习",
+                entries = today.reviewWords,
+                tag = TagStyle.Review,
+                expanded = expanded[1],
+                onToggle = { expanded = listOf(expanded[0], !expanded[1], expanded[2]) },
+                visible = visible,
+                selectedIndex = selectedIndex,
+                absIndexById = absIndexById,
+                playingWordId = playingWordId,
+                onSelectRow = { i ->
+                    selectedIndex = i
+                    visible.getOrNull(i)?.let { speakWord(it) }
+                },
+                onSpeak = ::speakWord,
+            )
+            GroupSection(
+                title = "补查",
+                entries = today.catchUpWords,
+                tag = TagStyle.CatchUp,
+                expanded = expanded[2],
+                onToggle = { expanded = listOf(expanded[0], expanded[1], !expanded[2]) },
+                visible = visible,
+                selectedIndex = selectedIndex,
+                absIndexById = absIndexById,
+                playingWordId = playingWordId,
+                onSelectRow = { i ->
+                    selectedIndex = i
+                    visible.getOrNull(i)?.let { speakWord(it) }
+                },
+                onSpeak = ::speakWord,
+            )
+        }
         Spacer(Modifier.padding(bottom = 16.dp))
     }
 }
@@ -360,8 +376,12 @@ private fun BrowseRow(
 ) {
     val hoverInteraction = remember { MutableInteractionSource() }
     val hovered by hoverInteraction.collectIsHoveredAsState()
-    val highlight = selected || hovered
-    val bg = if (highlight) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.045f) else MaterialTheme.colorScheme.surface
+    // 悬停仅视觉预览高亮，不改变选中（PRD 修订 #28）；选中 = 深底色 + 左指示条，悬停 = 浅底色
+    val bg = when {
+        selected -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.045f)
+        hovered -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.025f)
+        else -> MaterialTheme.colorScheme.surface
+    }
 
     Row(
         Modifier

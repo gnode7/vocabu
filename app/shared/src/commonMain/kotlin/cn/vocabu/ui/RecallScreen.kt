@@ -123,8 +123,7 @@ class RecallViewModel(
         val cur = session ?: return
         val globalIndex = cur.batchStart + batchIndex
         val item = cur.queue.getOrNull(globalIndex) ?: return
-        val isFirstRating = item.rating == null
-        val delta = RecallSessionOps.logDelta(item, isFirstRating, rating)
+        val delta = RecallSessionOps.logDelta(item, rating)
         val n = now()
         val record = Sm2.update(
             item.word.id, item.facet, records.find(item.word.id, item.facet), rating.quality, n,
@@ -278,7 +277,7 @@ private fun RecallList(vm: RecallViewModel, session: RecallSession) {
                     else -> when (e.key) {
                         // 空格 = 播报当前选中词条（与通览空格同语义，2026-09-15 用户反馈）：
                         // 无条件播报——鼠标点击行（onSelectAndSpeak）本就绕过自动播报开关，
-                        // 键盘播报入口保持一致口径；选中随上下键/悬停变化后按空格即重播当前词。
+                        // 键盘播报入口保持一致口径；选中随点击/上下键变化后按空格即重播当前词。
                         Key.Spacebar -> {
                             session.batch.getOrNull(session.selection)
                                 ?.let { vm.speak(it.word, it.facet) }
@@ -329,7 +328,6 @@ private fun RecallList(vm: RecallViewModel, session: RecallSession) {
                     revealed = pressedPeekGlobal == globalIndex || (qPeek && i == session.selection),
                     onPeekPress = { pressedPeekGlobal = globalIndex },
                     onPeekRelease = { if (pressedPeekGlobal == globalIndex) pressedPeekGlobal = -1 },
-                    onSelect = { vm.select(i) },
                     onSelectAndSpeak = {
                         vm.select(i)
                         vm.speak(item.word, item.facet)
@@ -383,17 +381,18 @@ private fun RecallRow(
     revealed: Boolean,
     onPeekPress: () -> Unit,
     onPeekRelease: () -> Unit,
-    onSelect: () -> Unit,
     onSelectAndSpeak: () -> Unit,
     onRate: (Rating) -> Unit,
 ) {
     val hoverInteraction = remember { MutableInteractionSource() }
     val hovered by hoverInteraction.collectIsHoveredAsState()
-    // 鼠标悬停 = 选中（PRD §2.4.2 选择与通览相同；Q 偷看作用于当前选中条目）
-    LaunchedEffect(hovered) { if (hovered) onSelect() }
+    // 悬停仅视觉预览高亮，不改变选中（PRD 修订 #28：选中态仅由点击/键盘上下键更新，样式可区分）
     val rated = item.rating != null
-    val highlight = selected || hovered
-    val bg = if (highlight) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.045f) else MaterialTheme.colorScheme.surface
+    val bg = when {
+        selected -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.045f)
+        hovered -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.025f)
+        else -> MaterialTheme.colorScheme.surface
+    }
     val contentColor = if (rated) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f) else Color.Unspecified
 
     Row(

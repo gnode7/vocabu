@@ -7,6 +7,7 @@ import cn.vocabu.core.model.Word
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -190,18 +191,18 @@ class RecallSessionTest {
         assertEquals(0, s.selection)
     }
 
-    // ---- 落账口径（PRD 1.2 #21；ISSUE-006 范围 7）----
+    // ---- 落账口径（PRD 1.2 #21；ISSUE-006 范围 7；ISSUE-010 轮 2 重评口径）----
 
     @Test
     fun `落账_首评新词计新学_首评旧词计复习_判定数各一`() {
         val fresh = RecallItem(word(1), Facet.EN2ZH, hadRecord = false)
         val reviewed = RecallItem(word(2), Facet.ZH2EN, hadRecord = true)
-        val d1 = RecallSessionOps.logDelta(fresh, isFirstRating = true, rating = Rating.GOOD)
+        val d1 = RecallSessionOps.logDelta(fresh, Rating.GOOD)
         assertEquals(1, d1.newWordsLearned)
         assertEquals(0, d1.wordsReviewed)
         assertEquals(1, d1.totalJudgments)
         assertEquals(1, d1.correctJudgments)
-        val d2 = RecallSessionOps.logDelta(reviewed, isFirstRating = true, rating = Rating.HARD)
+        val d2 = RecallSessionOps.logDelta(reviewed, Rating.HARD)
         assertEquals(0, d2.newWordsLearned)
         assertEquals(1, d2.wordsReviewed)
         assertEquals(1, d2.correctJudgments)
@@ -209,14 +210,61 @@ class RecallSessionTest {
 
     @Test
     fun `落账_改评只计判定_忘记不计正确`() {
-        val item = RecallItem(word(1), Facet.EN2ZH, hadRecord = false)
-        val reRate = RecallSessionOps.logDelta(item, isFirstRating = false, rating = Rating.EASY)
+        val rated = RecallItem(word(1), Facet.EN2ZH, hadRecord = false, rating = Rating.FORGET)
+        val reRate = RecallSessionOps.logDelta(rated, Rating.EASY)
         assertEquals(0, reRate.newWordsLearned)
         assertEquals(0, reRate.wordsReviewed)
         assertEquals(1, reRate.totalJudgments)
         assertEquals(1, reRate.correctJudgments)
-        val forget = RecallSessionOps.logDelta(item, isFirstRating = true, rating = Rating.FORGET)
+        val fresh = RecallItem(word(1), Facet.EN2ZH, hadRecord = false)
+        val forget = RecallSessionOps.logDelta(fresh, Rating.FORGET)
         assertEquals(1, forget.totalJudgments)
         assertEquals(0, forget.correctJudgments) // Forget = 不正确
+    }
+
+    @Test
+    fun `落账_轮2重评计复习不计新学_对齐考察ledgered口径`() {
+        // 轮 2 重排队后 rating 已置 null，但 everRated=true：记录已在轮 1 创建，本次是 update（PRD 1.2 #21）
+        val round2 = RecallItem(word(1), Facet.EN2ZH, hadRecord = false, everRated = true)
+        val d = RecallSessionOps.logDelta(round2, Rating.GOOD)
+        assertEquals(0, d.newWordsLearned) // 不重复计新学
+        assertEquals(1, d.wordsReviewed) // 计复习（与考察重考同口径）
+        assertEquals(1, d.totalJudgments)
+        assertEquals(1, d.correctJudgments)
+        // 会话开始即有账的词重评同样只计复习
+        val round2Reviewed = RecallItem(word(2), Facet.ZH2EN, hadRecord = true, everRated = true)
+        val d2 = RecallSessionOps.logDelta(round2Reviewed, Rating.HARD)
+        assertEquals(0, d2.newWordsLearned)
+        assertEquals(1, d2.wordsReviewed)
+        // 重评忘记：判定数 +1、不计正确
+        val d3 = RecallSessionOps.logDelta(round2, Rating.FORGET)
+        assertEquals(0, d3.newWordsLearned)
+        assertEquals(1, d3.wordsReviewed)
+        assertEquals(1, d3.totalJudgments)
+        assertEquals(0, d3.correctJudgments)
+    }
+
+    @Test
+    fun `轮末重排队置位everRated_重评不再计新学`() {
+        val words = (1L..3L).map { word(it) }
+        var s = RecallSessionBuilder.build(words, emptyMap(), "en2zh", displayCount = 3, Random(1), t0)
+        val idx0 = s.batch.indexOfFirst { it.word.id == 1L }
+        s = RecallSessionOps.rate(s, idx0, Rating.FORGET, t0, ::sm2Record, Random(1))
+        val others = s.queue.filter { it.word.id != 1L }
+        val i1 = s.batch.indexOfFirst { it.word.id == others[0].word.id }
+        s = RecallSessionOps.rate(s, i1, Rating.GOOD, t0 + 61.seconds, ::sm2Record, Random(1))
+        val i2 = s.batch.indexOfFirst { it.word.id == others[1].word.id }
+        s = RecallSessionOps.rate(s, i2, Rating.GOOD, t0 + 61.seconds, ::sm2Record, Random(1))
+        assertFalse(s.finished)
+        assertEquals(2, s.roundNo)
+        val round2Item = s.queue.single()
+        assertEquals(1L, round2Item.word.id)
+        assertNull(round2Item.rating) // 置灰解除，待重评
+        assertTrue(round2Item.everRated) // 轮 1 已评过
+        // 重评的统计增量 = 复习 + 判定，不再计新学（VM 按 logDelta 落账）
+        val d = RecallSessionOps.logDelta(round2Item, Rating.GOOD)
+        assertEquals(0, d.newWordsLearned)
+        assertEquals(1, d.wordsReviewed)
+        assertEquals(1, d.totalJudgments)
     }
 }

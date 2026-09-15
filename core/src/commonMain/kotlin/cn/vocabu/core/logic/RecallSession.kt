@@ -48,6 +48,8 @@ data class RecallItem(
     val rating: Rating? = null,
     /** 最近一次评级后的账面（轮末到期检查依据） */
     val recordAfterRating: LearningRecord? = null,
+    /** 会话内是否已有过评级事件（轮 2+ 重排队置位；区分「轮 2 重评」与「首评」，ISSUE-010） */
+    val everRated: Boolean = false,
 )
 
 object RecallSessionBuilder {
@@ -153,7 +155,7 @@ object RecallSessionOps {
 
         val dueAgain = session.queue
             .filter { it.recordAfterRating != null && it.recordAfterRating.nextReviewTime <= now }
-            .map { it.copy(rating = null, recordAfterRating = null) }
+            .map { it.copy(rating = null, recordAfterRating = null, everRated = true) }
             .let { it.shuffled(random) }
         if (dueAgain.isEmpty()) return session.copy(finished = true)
 
@@ -168,11 +170,14 @@ object RecallSessionOps {
 
     /**
      * 单次评级事件的学习日志增量（PRD 1.2 #21：分母 = 判定数，Forget = 不正确）。
-     * 首评：无账 = 新学 +1、有账 = 复习 +1；改评只计判定（会话内以最后一次评级更新 SM-2，日志按事件计）。
+     * 三分支（ISSUE-010，对齐考察侧 ledgered 口径）：
+     * 首评（[RecallItem.everRated] = false 且 rating 为空）= 无账新学 +1 / 有账复习 +1；
+     * 轮 2+ 重评（everRated = true 且 rating 为空——轮末重排队已置空）= 复习 +1（记录已在轮 1 创建，本次是 update，不重复计新学）；
+     * 批内改评（rating 非空）= 只计判定（会话内以最后一次评级更新 SM-2，日志按事件计）。
      */
-    fun logDelta(item: RecallItem, isFirstRating: Boolean, rating: Rating): RecallLogDelta {
-        val isNewWord = isFirstRating && !item.hadRecord
-        val isReview = isFirstRating && item.hadRecord
+    fun logDelta(item: RecallItem, rating: Rating): RecallLogDelta {
+        val isNewWord = item.rating == null && !item.everRated && !item.hadRecord
+        val isReview = item.rating == null && (item.everRated || item.hadRecord)
         return RecallLogDelta(
             newWordsLearned = if (isNewWord) 1 else 0,
             wordsReviewed = if (isReview) 1 else 0,
