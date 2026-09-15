@@ -208,11 +208,21 @@ class TestViewModel(
         session = session?.let { TestSessionOps.tick(it, 1) }
     }
 
-    /** 手动重听（听写词条播报读音，不参与计时联动）。 */
+    /**
+     * 手动重听（听写词条播报读音；复审 0009 必修项）：重听顶掉原播报会经 clear 撤走原放行回调，
+     * 故此处补同 cursor 的放行闭包——releaseTiming 幂等且三不（未 hold 时 no-op，core 单测兜底），
+     * 防 timingHeld 泄漏到判定致倒计时圈停走；语义仍在「重听不新增 hold」框架内。
+     */
     fun replayDictation() {
-        val item = session?.currentItem ?: return
+        val s = session ?: return
+        val item = s.currentItem ?: return
         if (item.part == TestPart.DICTATION && item.zhJudgment == null && item.enJudgment == null) {
-            speak(SpeechScriptBuilder.buildDictation(item.word), 0, {}, {})
+            val cursor = s.cursor
+            speak(
+                SpeechScriptBuilder.buildDictation(item.word), 0,
+                onFinished@ { session = session?.let { TestSessionOps.releaseTiming(it, cursor) } },
+                onSilent@ { session = session?.let { TestSessionOps.releaseTiming(it, cursor) } },
+            )
         }
     }
 

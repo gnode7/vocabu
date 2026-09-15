@@ -26,7 +26,6 @@ class DesktopAudioPlayer : AudioPlayer {
 
     private sealed interface Job {
         data class Segment(val audio: TtsAudio, val pauseAfterMillis: Long) : Job
-        data object Poison : Job
     }
 
     private val queue = LinkedBlockingQueue<Job>()
@@ -49,7 +48,6 @@ class DesktopAudioPlayer : AudioPlayer {
             } catch (_: InterruptedException) {
                 break
             }
-            if (job is Job.Poison) break
             if (job !is Job.Segment) continue
             playSegment(job)
             if (shutdown) break
@@ -106,7 +104,8 @@ class DesktopAudioPlayer : AudioPlayer {
                     byteBuf.reset()
                 }
                 line?.let {
-                    it.drain()
+                    // 取消分支 flush 丢弃 Line 内部缓冲（≤64KB，drain 会播完残音 ≤0.4s——复审顺带项）
+                    if (cancelled.cancelled) it.flush() else it.drain()
                 }
             } finally {
                 line?.close()
@@ -153,14 +152,6 @@ class DesktopAudioPlayer : AudioPlayer {
                 return
             }
             remaining -= step
-        }
-    }
-
-    private fun lineQuietly(stream: Bitstream) {
-        try {
-            stream.close()
-        } catch (_: JavaLayerException) {
-            // 关闭失败无需处理
         }
     }
 
