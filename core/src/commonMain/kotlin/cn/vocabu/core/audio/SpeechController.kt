@@ -91,6 +91,7 @@ class SpeechController(
             val audio = tts.fetch(seg.text, voiceFor(seg.lang))
             if (audio == null) {
                 // 0012 B1：失败跳段留痕（PRD §4.4 静默语义不变），desktop 侧 TTS 客户端另有原因级留痕
+                // 0013 方案A：留痕原文保持人眼可读，GBK 控制台转义由 desktop 装配端 logger 闭包统一兜底
                 logger("段拉取失败跳过 text=${seg.text} voice=${voiceFor(seg.lang)}")
                 continue
             }

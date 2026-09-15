@@ -20,9 +20,15 @@ class YoudaoTtsUrlTest {
             YoudaoTtsUrl.build("apple", TtsVoice.BRITISH),
         )
         // 中文必须显式 type=1（缺省 500，实测修正 issue 文档）
+        // 0013：MANDARIN 追加 le=zh（服务端大量中文词条吐空 500 的补救；英文带 le=zh 实测 500，必须条件追加）
         assertEquals(
-            "https://dict.youdao.com/dictvoice?audio=%E6%9C%9F%E5%BE%85&type=1",
+            "https://dict.youdao.com/dictvoice?audio=%E6%9C%9F%E5%BE%85&type=1&le=zh",
             YoudaoTtsUrl.build("期待", TtsVoice.MANDARIN),
+        )
+        // 英文守护：AMERICAN/BRITISH 一律不带 le=zh
+        assertEquals(
+            "https://dict.youdao.com/dictvoice?audio=look%20forward&type=0",
+            YoudaoTtsUrl.build("look forward", TtsVoice.AMERICAN),
         )
     }
 

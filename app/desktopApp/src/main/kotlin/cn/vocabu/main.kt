@@ -20,6 +20,7 @@ import cn.vocabu.platform.DesktopAudioPlayer
 import cn.vocabu.platform.ErrorCuePlayer
 import cn.vocabu.platform.PoiExcelReader
 import cn.vocabu.platform.YoudaoTtsClient
+import cn.vocabu.platform.asciiEscape
 import cn.vocabu.ui.HomeViewModel
 import cn.vocabu.ui.RecallViewModel
 import cn.vocabu.ui.TestViewModel
@@ -50,7 +51,9 @@ fun main() = application {
         taskDispatcher = { block -> Thread(block, "vocabu-tts").apply { isDaemon = true }.start() },
         notifyDispatcher = { block -> SwingUtilities.invokeLater(block) },
         sleeper = { Thread.sleep(it) },
-        logger = { System.err.println("[vocabu] $it") },
+        // 0013 方案A：此处统一 asciiEscape 兜底——一处兜住 core 全部 logger 输出（含未来新增），
+        // core 留痕原文保持人眼可读，GBK 控制台输出纯 ASCII（码点可反查）
+        logger = { System.err.println("[vocabu] ${asciiEscape(it)}") },
     )
     val errorCuePlayer = ErrorCuePlayer()
 

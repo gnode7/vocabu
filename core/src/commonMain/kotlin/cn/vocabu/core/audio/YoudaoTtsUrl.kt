@@ -7,20 +7,28 @@ package cn.vocabu.core.audio
  * - AMERICAN → type=0，BRITISH → type=1，MANDARIN → type=1
  * - 中文必须显式带 type=1，type 缺省直接 HTTP 500（issue 原文「中文直接传」写法不成立）
  * - accent 方向（0=美音 1=英音）待用户耳验，反了一行改映射
+ *
+ * le=zh 补救（0013，2026-09-15 晚实测，服务端大量中文词条合成吐空 → 500，证据群内匠人+本方 curl 双确认）：
+ * - MANDARIN 追加 le=zh：「爱情/咖啡馆/知识就是力量/苹果汁」500→200，改善显著但不根绝（「第一把手」仍 500）
+ * - 必须 MANDARIN 条件追加：英文 type=0 带 le=zh 直接 500（实测 apple）
+ * - 残留 500 词条的彻底解是换 TTS 源（Edge TTS，PRD §2.6 扩展位），先落本补救按「一次一个变量」原则观察
  */
 object YoudaoTtsUrl {
 
     private const val BASE = "https://dict.youdao.com/dictvoice"
 
-    /** 构建 dictvoice 请求 URL：audio 参数 UTF-8 percent-encode，type 按音色映射。 */
+    /** 构建 dictvoice 请求 URL：audio 参数 UTF-8 percent-encode，type 按音色映射，MANDARIN 追加 le=zh。 */
     fun build(text: String, voice: TtsVoice): String =
-        "$BASE?audio=${encode(text)}&type=${typeParam(voice)}"
+        "$BASE?audio=${encode(text)}&type=${typeParam(voice)}${langParam(voice)}"
 
     private fun typeParam(voice: TtsVoice): Int = when (voice) {
         TtsVoice.AMERICAN -> 0
         TtsVoice.BRITISH -> 1
         TtsVoice.MANDARIN -> 1
     }
+
+    /** le=zh 仅 MANDARIN 追加（英文带此参数实测 500）。 */
+    private fun langParam(voice: TtsVoice): String = if (voice == TtsVoice.MANDARIN) "&le=zh" else ""
 
     /**
      * RFC 3986 percent-encode（纯 Kotlin，跨平台）：

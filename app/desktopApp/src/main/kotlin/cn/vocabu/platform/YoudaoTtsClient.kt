@@ -72,8 +72,10 @@ class YoudaoTtsClient(private val cacheDir: Path) : TtsClient {
         }
         if (outcome is Attempt.Ok) return outcome.bytes
         val failure = outcome as Attempt.Failure
+        // 0013 留痕全 ASCII 化（标签英文化 + text \uXXXX 转义）：Windows GBK 控制台下中文标签
+        // 与中文 text 双双乱码毁取证口径；转义后日志纯 ASCII，中文可按码点反查
         System.err.println(
-            "[vocabu-tts] fetch失败 text=$text voice=$voice 原因=${failure.reason}${if (retried) "（重试1次后仍失败）" else ""}",
+            "[vocabu-tts] fetch FAIL text=${asciiEscape(text)} voice=$voice reason=${asciiEscape(failure.reason)}${if (retried) " (retried once)" else ""}",
         )
         return null
     }
@@ -84,10 +86,10 @@ class YoudaoTtsClient(private val cacheDir: Path) : TtsClient {
         conn.readTimeout = TIMEOUT_MILLIS
         try {
             val code = conn.responseCode
-            if (code != 200) Attempt.Failure("HTTP $code")
+            if (code != 200) Attempt.Failure("HTTP $code${serverMsg(conn)}")
             else conn.inputStream.use { it.readBytes() }
                 .takeIf { it.isNotEmpty() }?.let { Attempt.Ok(it) }
-                ?: Attempt.Failure("空body")
+                ?: Attempt.Failure("empty body")
         } finally {
             conn.disconnect()
         }
@@ -95,6 +97,18 @@ class YoudaoTtsClient(private val cacheDir: Path) : TtsClient {
         Attempt.Failure("IOException ${e.javaClass.simpleName}: ${e.message}", io = true)
     } catch (e: SecurityException) {
         Attempt.Failure("SecurityException: ${e.message}")
+    }
+
+    /**
+     * 非 200 时读 errorStream 提取服务端定性 msg（0013 匠人派单④，如 "returned null audio"）：
+     * 定性信息对归因极有用；提取失败/超时静默返回空串，绝不阻断留痕主路径。
+     */
+    private fun serverMsg(conn: HttpURLConnection): String = try {
+        val body = conn.errorStream?.use { it.readBytes().decodeToString() } ?: return ""
+        Regex("\"msg\"\\s*:\\s*\"([^\"]*)\"").find(body)
+            ?.groupValues?.get(1)?.let { " msg=$it" } ?: ""
+    } catch (_: Exception) {
+        ""
     }
 
     /** 原子落盘（tmp+move 防半截文件）+ words 目录超限淘汰。 */
