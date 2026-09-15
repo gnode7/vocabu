@@ -181,10 +181,17 @@ class TestViewModel(
             errorCue()
             if (st.correctionReplay) {
                 // 提交时当前词即被批改词（submit 不推进 cursor）；
-                // 告警音在前，回放 +200ms 延迟避免重叠（ISSUE-008 焦点⑤）
+                // 告警音在前，回放 +200ms 延迟避免重叠（ISSUE-008 焦点⑤）。
+                // 回放必须带放行闭包（2026-09-15 用户反馈②顺带，同 replayDictation 教训）：
+                // 听写读音播放中提交（hold 中）时，回放 speak 顶掉原播报会经 clear 撤走原放行回调，
+                // 传空回调将泄漏 timingHeld 致倒计时圈停走；releaseTiming 幂等三不兜底，
+                // 批改后/非 hold 情形为 no-op，语义仍在「不新增 hold」框架内。
+                val cursor = s.cursor
                 speak(
                     SpeechScriptBuilder.buildCorrectionReplay(s.currentItem!!.word, wrong.map { it.facet }, st),
-                    CORRECTION_REPLAY_DELAY_MS, {}, {},
+                    CORRECTION_REPLAY_DELAY_MS,
+                    onFinished@ { session = session?.let { TestSessionOps.releaseTiming(it, cursor) } },
+                    onSilent@ { session = session?.let { TestSessionOps.releaseTiming(it, cursor) } },
                 )
             }
         }

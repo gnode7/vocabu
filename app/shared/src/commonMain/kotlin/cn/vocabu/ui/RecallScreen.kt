@@ -276,6 +276,15 @@ private fun RecallList(vm: RecallViewModel, session: RecallSession) {
                     e.type != KeyEventType.KeyDown -> false
 
                     else -> when (e.key) {
+                        // 空格 = 播报当前选中词条（与通览空格同语义，2026-09-15 用户反馈）：
+                        // 无条件播报——鼠标点击行（onSelectAndSpeak）本就绕过自动播报开关，
+                        // 键盘播报入口保持一致口径；选中随上下键/悬停变化后按空格即重播当前词。
+                        Key.Spacebar -> {
+                            session.batch.getOrNull(session.selection)
+                                ?.let { vm.speak(it.word, it.facet) }
+                            true
+                        }
+
                         Key.DirectionDown -> {
                             vm.moveSelection(1); true
                         }
