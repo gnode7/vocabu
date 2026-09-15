@@ -80,6 +80,7 @@ object SpeechScriptBuilder {
     /**
      * 考察答错自动回放（ISSUE-009；PRD §2.5.2/§2.5.3 流程3、修订 #11、设置 correctionReplay）：
      * 听写答错 = 读音 + 字母拼写（词组 = 仅读音，PRD 未定义词组拼写回放）；默写答错 = 仅读音（§2.5.3）。
+     * （2026-09-15 用户曾提「回放不拼字母」后自行撤回，维持 PRD 口径；遇到说法与 PRD 冲突先向用户确认再动代码。）
      * 多面同错按 中→英 顺序拼接，一次播完。
      */
     fun buildCorrectionReplay(word: Word, wrongFacets: List<Facet>, settings: AppSettings): List<SpeechSegment> {

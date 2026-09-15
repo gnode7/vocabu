@@ -59,7 +59,7 @@ class TestSessionTest {
         val s = TestSessionBuilder.build(words, records, "dictation", Random(1), t0)
         assertEquals(listOf(1L, 2L, 3L), s.queue.map { it.word.id }.sorted())
         assertTrue(s.queue.all { it.part == TestPart.DICTATION })
-        assertEquals(TestBox.ZH, s.focusedBox) // 听写初始焦点 = 中文框
+        assertEquals(TestBox.EN, s.focusedBox) // 听写初始焦点 = 英文框（2026-09-15 用户口径：英文优先）
         assertFalse(s.finished)
     }
 
@@ -116,6 +116,7 @@ class TestSessionTest {
     fun `提交_听写两框_中文对英文空_各面独立评级与账本`() {
         val words = listOf(word(1))
         var s = TestSessionBuilder.build(words, emptyMap(), "dictation", Random(1), t0)
+        s = TestSessionOps.focus(s, TestBox.ZH) // 切到中文框（初始焦点 = 英文框，2026-09-15 口径）
         s = TestSessionOps.type(s, TestBox.ZH, "释义1")
         // 中文框 3 秒（≤Easy 5 → EASY）、英文框留空 → 两面均判
         s = TestSessionOps.tick(s, 3)
@@ -181,16 +182,16 @@ class TestSessionTest {
     fun `两段回车_第一段锁定当前框并切焦点_锁定框拒输入拒聚焦`() {
         val words = listOf(word(1))
         var s = TestSessionBuilder.build(words, emptyMap(), "dictation", Random(1), t0)
-        s = TestSessionOps.type(s, TestBox.ZH, "释义1")
+        s = TestSessionOps.type(s, TestBox.EN, "word1") // 初始焦点 = 英文框（2026-09-15 口径）
         s = TestSessionOps.lockAndShift(s) // 第一段回车
         val item = s.currentItem!!
-        assertTrue(item.zhLocked)
-        assertEquals(TestBox.EN, s.focusedBox) // 切到英文框
+        assertTrue(item.enLocked)
+        assertEquals(TestBox.ZH, s.focusedBox) // 切到中文框
         // 锁定框不可回改、不可聚焦
-        assertEquals(item, TestSessionOps.type(s, TestBox.ZH, "改不动").currentItem)
-        assertEquals(TestBox.EN, TestSessionOps.focus(s, TestBox.ZH).focusedBox)
-        // Tab 只在可用框间循环：focus(EN) 仍可
-        assertEquals(TestBox.EN, TestSessionOps.focus(s, TestBox.EN).focusedBox)
+        assertEquals(item, TestSessionOps.type(s, TestBox.EN, "改不动").currentItem)
+        assertEquals(TestBox.ZH, TestSessionOps.focus(s, TestBox.EN).focusedBox)
+        // Tab 只在可用框间循环：focus(ZH) 仍可
+        assertEquals(TestBox.ZH, TestSessionOps.focus(s, TestBox.ZH).focusedBox)
     }
 
     @Test
@@ -207,22 +208,22 @@ class TestSessionTest {
     fun `计时_焦点切换暂停续走_锁定后冻结`() {
         val words = listOf(word(1))
         var s = TestSessionBuilder.build(words, emptyMap(), "dictation", Random(1), t0)
-        s = TestSessionOps.tick(s, 2) // 中文框焦点走 2s
-        s = TestSessionOps.focus(s, TestBox.EN) // 切走 → 中文暂停
-        s = TestSessionOps.tick(s, 5) // 英文框走 5s
-        s = TestSessionOps.focus(s, TestBox.ZH)
-        s = TestSessionOps.tick(s, 1) // 中文续走 1s
+        s = TestSessionOps.tick(s, 2) // 英文框焦点走 2s（初始焦点 = 英文框，2026-09-15 口径）
+        s = TestSessionOps.focus(s, TestBox.ZH) // 切走 → 英文暂停
+        s = TestSessionOps.tick(s, 5) // 中文框走 5s
+        s = TestSessionOps.focus(s, TestBox.EN)
+        s = TestSessionOps.tick(s, 1) // 英文续走 1s
         val item = s.currentItem!!
-        assertEquals(3, item.zhElapsed)
-        assertEquals(5, item.enElapsed)
+        assertEquals(3, item.enElapsed)
+        assertEquals(5, item.zhElapsed)
         // 锁定后冻结
-        s = TestSessionOps.lockAndShift(s) // 锁中文 → 焦点英文
+        s = TestSessionOps.lockAndShift(s) // 锁英文 → 焦点中文
         val after = TestSessionOps.tick(s, 9)
-        assertEquals(3, after.currentItem!!.zhElapsed) // 中文已冻结
-        assertEquals(14, after.currentItem!!.enElapsed) // 英文继续
+        assertEquals(3, after.currentItem!!.enElapsed) // 英文已冻结
+        assertEquals(14, after.currentItem!!.zhElapsed) // 中文继续
         // 未聚焦（焦点在按钮）不计时
         val judged = TestSessionOps.submit(after, 5, 10, t0, ::sm2)!!.session
-        assertEquals(after.currentItem!!.enElapsed, judged.currentItem!!.enElapsed)
+        assertEquals(after.currentItem!!.zhElapsed, judged.currentItem!!.zhElapsed)
         assertNull(TestSessionOps.tick(judged, 1).focusedBox)
     }
 
@@ -311,7 +312,7 @@ class TestSessionTest {
         assertEquals(1L, s.currentItem!!.word.id)
         assertEquals(TestPart.DICTATION, s.currentItem!!.part)
         assertNull(s.currentItem!!.zhJudgment) // 整词重考：判定清空
-        assertEquals(TestBox.ZH, s.focusedBox)
+        assertEquals(TestBox.EN, s.focusedBox) // 听写重考初始焦点 = 英文框（2026-09-15 口径）
         // 重考答对 → 无感进入默写段
         s = TestSessionOps.type(s, TestBox.ZH, "释义1")
         s = TestSessionOps.type(s, TestBox.EN, "apple")
@@ -375,7 +376,7 @@ class TestSessionTest {
         assertEquals(0, revived.zhElapsed + revived.enElapsed)
         assertNull(revived.zhJudgment)
         assertNull(revived.enJudgment)
-        assertEquals(TestBox.ZH, recheck.focusedBox) // 重考条目重获焦点
+        assertEquals(TestBox.EN, recheck.focusedBox) // 重考条目重获焦点（听写 = 英文框，2026-09-15 口径）
     }
 
     // ---- 导航：只读回看不重复落账（PRD §2.5.2 上一个/下一个）----
@@ -417,7 +418,7 @@ class TestSessionTest {
         // 放行（onFinished/onSilent 同构）后正常起计
         val released = TestSessionOps.releaseTiming(held, held.cursor)
         assertFalse(released.currentItem!!.timingHeld)
-        assertEquals(2, TestSessionOps.tick(released, 2).currentItem!!.zhElapsed)
+        assertEquals(2, TestSessionOps.tick(released, 2).currentItem!!.enElapsed) // 焦点框（英文框）起计
     }
 
     @Test
@@ -474,6 +475,6 @@ class TestSessionTest {
         assertTrue(s.finished)
         s = TestSessionOps.advance(s.copy(finished = false), t0 + 61.seconds, Random(1))
         assertFalse(s.currentItem!!.timingHeld) // 残留 hold 已清
-        assertEquals(1, TestSessionOps.tick(s, 1).currentItem!!.zhElapsed) // 新轮计时正常
+        assertEquals(1, TestSessionOps.tick(s, 1).currentItem!!.enElapsed) // 新轮计时正常（焦点框起计）
     }
 }

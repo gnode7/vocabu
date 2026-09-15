@@ -111,8 +111,14 @@ data class TestSession(
     /** 已完成批改的词数（计量表进度）。 */
     val judgedWords: Int get() = queue.count { it.isJudged() }
 
-    /** 条目首个可用框（未锁定即可用）：听写 = 中文框、默写 = 英文框。 */
-    fun defaultBox(item: TestItem): TestBox? = item.part.boxes().firstOrNull { !boxLocked(item, it) }
+    /**
+     * 条目首个可用框（未锁定即可用）：听写 = 英文框（2026-09-15 用户口径：英文框在上、初始焦点英文优先，
+     * 与「听英文写英文」主线一致）、默写 = 英文框。仅定初始焦点，boxes() 顺序（落账/回放对齐）不变。
+     */
+    fun defaultBox(item: TestItem): TestBox? {
+        val preferred = if (item.part == TestPart.DICTATION) listOf(TestBox.EN, TestBox.ZH) else item.part.boxes()
+        return preferred.firstOrNull { !boxLocked(item, it) }
+    }
 
     private fun boxLocked(item: TestItem, box: TestBox): Boolean =
         if (box == TestBox.ZH) item.zhLocked else item.enLocked

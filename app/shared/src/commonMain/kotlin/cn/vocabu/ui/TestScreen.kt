@@ -74,7 +74,7 @@ private const val CORRECTION_REPLAY_DELAY_MS = 200L
 
 /**
  * 考察会话（ISSUE-009；PRD §2.5）：单一入口按「考察方式」执行——
- * 听写（播报读音 → 中文/英文两框作答、两段回车、每框独立倒计时圈、批改徽章/红框/右侧正确答案/告警音）
+ * 听写（播报读音 → 英文/中文两框作答（2026-09-15 口径：英文框在上）、两段回车、每框独立倒计时圈、批改徽章/红框/右侧正确答案/告警音）
  * 与默写（中文释义 → 英文单框）+ 混合编排（先听写后默写）。
  * 提交即落账（SM-2 各面 + 当日统计，分母 = 判定数）；Forget +60s 轮末整词重考。
  * 纯逻辑在 core（TestSession 状态机）；本类只做仓储读写、播报与状态推进编排。
@@ -318,7 +318,7 @@ private fun TestMeter(vm: TestViewModel, s: TestSession) {
     }
 }
 
-/** 听写面板：播报区 + 中文/英文双框（独立倒计时圈 + 批改徽章 + 右侧正确答案 + 评级条）。 */
+/** 听写面板：播报区 + 英文/中文双框（2026-09-15 用户口径：英文在上、中文在下；独立倒计时圈 + 批改徽章 + 右侧正确答案 + 评级条）。 */
 @Composable
 private fun DictationPanel(vm: TestViewModel, s: TestSession) {
     val item = s.currentItem!!
@@ -340,24 +340,10 @@ private fun DictationPanel(vm: TestViewModel, s: TestSession) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("🔊", fontSize = 18.sp)
             Spacer(Modifier.width(6.dp))
-            Text("听写：请听写该词的中文释义与英文拼写", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+            Text("听写：请听写该词的英文拼写与中文释义", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.weight(1f))
             TextButton(onClick = { vm.replayDictation() }) { Text("重听") }
         }
-        TestAnswerBox(
-            vm = vm,
-            box = TestBox.ZH,
-            item = item,
-            shown = item.zhAnswer,
-            onText = { vm.type(TestBox.ZH, it) },
-            hint = "中文释义",
-            correctAnswer = item.word.translation,
-            judgment = item.zhJudgment,
-            elapsed = item.zhElapsed,
-            easy = easy,
-            good = good,
-            focusRequester = zhFocus,
-        )
         TestAnswerBox(
             vm = vm,
             box = TestBox.EN,
@@ -371,6 +357,20 @@ private fun DictationPanel(vm: TestViewModel, s: TestSession) {
             easy = easy,
             good = good,
             focusRequester = enFocus,
+        )
+        TestAnswerBox(
+            vm = vm,
+            box = TestBox.ZH,
+            item = item,
+            shown = item.zhAnswer,
+            onText = { vm.type(TestBox.ZH, it) },
+            hint = "中文释义",
+            correctAnswer = item.word.translation,
+            judgment = item.zhJudgment,
+            elapsed = item.zhElapsed,
+            easy = easy,
+            good = good,
+            focusRequester = zhFocus,
         )
         TestFooter(vm, item)
     }

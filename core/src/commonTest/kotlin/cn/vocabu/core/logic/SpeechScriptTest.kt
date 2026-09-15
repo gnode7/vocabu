@@ -178,7 +178,7 @@ class SpeechScriptTest {
     fun `答错回放_英面读音加拼写_中面仅释义_中先英后`() {
         val s = AppSettings()
         val segs = SpeechScriptBuilder.buildCorrectionReplay(word(), listOf(Facet.EN2ZH, Facet.AUDIO_SPELLING), s)
-        // 中文面 = 释义；英文面 = 读音 + 逐字母拼写
+        // 中文面 = 释义；英文面 = 读音 + 逐字母拼写（2026-09-15 用户曾提撤回，维持 PRD 口径）
         assertEquals(listOf("苹果", "apple", "A", "P", "P", "L", "E"), segs.map { it.text })
         assertEquals(SpeechLang.ZH, segs[0].lang)
         assertEquals(0L, segs.last().pauseAfterMillis) // 末段无停顿
