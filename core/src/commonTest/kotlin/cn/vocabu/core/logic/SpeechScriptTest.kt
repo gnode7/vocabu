@@ -10,7 +10,7 @@ import kotlin.time.Instant
 
 /**
  * 播报脚本生成（ISSUE-005，PRD §2.3.3 / §4.2 / §4.3）：
- * 单词默认 = 读音 → 0.5s → 字母拼写（每字母间 0.3s）；词组默认 = 读音 → 0.5s → 中文翻译。
+ * 单词默认 = 读音 → 0.5s → 字母拼写（每字母间无停顿，修订 #29）；词组默认 = 读音 → 0.5s → 中文翻译。
  * 内容按设置多选裁剪；段结构 = (文本, 语言, 段后停顿)。
  */
 class SpeechScriptTest {
@@ -27,7 +27,7 @@ class SpeechScriptTest {
         createdAt = t0, updatedAt = t0, id = 2,
     )
 
-    // ---- 单词默认：读音 → 0.5s → 字母拼写（字母间 0.3s，末段停顿 0）----
+    // ---- 单词默认：读音 → 0.5s → 字母拼写（字母间无停顿，末段停顿 0）----
 
     @Test
     fun `单词默认脚本 读音加字母拼写`() {
@@ -37,12 +37,12 @@ class SpeechScriptTest {
     }
 
     @Test
-    fun `段间停顿零点五秒 字母间零点三秒`() {
+    fun `段间停顿零点五秒 字母间无停顿`() {
         val segs = SpeechScriptBuilder.build(word("apple"), AppSettings())
         // 段间（读音→拼写第一字母）0.5s
         assertEquals(500L, segs[0].pauseAfterMillis)
-        // 字母间 0.3s
-        assertEquals(listOf(300L, 300L, 300L, 300L), segs.drop(1).dropLast(1).map { it.pauseAfterMillis })
+        // 字母间无停顿（修订 #29：背靠背连播）
+        assertEquals(listOf(0L, 0L, 0L, 0L), segs.drop(1).dropLast(1).map { it.pauseAfterMillis })
         // 末段无停顿
         assertEquals(0L, segs.last().pauseAfterMillis)
     }
@@ -120,10 +120,10 @@ class SpeechScriptTest {
     fun `单词翻译开 读音拼写后追加中文段`() {
         val segs = SpeechScriptBuilder.build(word(), AppSettings(wordPlayTranslation = true))
         assertEquals(listOf("apple", "A", "P", "P", "L", "E", "苹果"), segs.map { it.text })
-        // 末段 = 中文翻译：语言 ZH、无尾停顿；前段（末字母）停顿沿用字母间 0.3s
+        // 末段 = 中文翻译：语言 ZH、无尾停顿；前段（末字母）停顿沿用字母间停顿（0，修订 #29）
         assertEquals(SpeechLang.ZH, segs.last().lang)
         assertEquals(0L, segs.last().pauseAfterMillis)
-        assertEquals(300L, segs[segs.lastIndex - 1].pauseAfterMillis)
+        assertEquals(0L, segs[segs.lastIndex - 1].pauseAfterMillis)
     }
 
     @Test

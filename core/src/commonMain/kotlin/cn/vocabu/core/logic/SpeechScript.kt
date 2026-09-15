@@ -19,7 +19,7 @@ data class SpeechSegment(
 
 /**
  * 播报脚本生成（纯函数，ISSUE-005；PRD §2.3.3、§4.2、§4.3）：
- * - 单词默认：读音 → 0.5s → 字母拼写（每字母单独一段，字母间 0.3s）；「单词播报中文翻译」开启时末尾追加翻译段（0012 C1，默认关）
+ * - 单词默认：读音 → 0.5s → 字母拼写（每字母单独一段，字母间无停顿，修订 #29）；「单词播报中文翻译」开启时末尾追加翻译段（0012 C1，默认关）
  * - 词组默认：读音 → 0.5s → 中文翻译
  * - 播报内容按设置多选裁剪；全关时返回空脚本（不播）。
  */
@@ -28,8 +28,8 @@ object SpeechScriptBuilder {
     /** 段间停顿：各内容段之间 0.5s（PRD §4.3）。 */
     private const val SEGMENT_PAUSE_MS = 500L
 
-    /** 字母间停顿：逐字母拼读 0.3s（PRD §4.2）。 */
-    private const val LETTER_PAUSE_MS = 300L
+    /** 字母间停顿：0（PRD 修订 #29，2026-09-16 用户反馈拼写节奏慢；字母音频首尾自带静音，背靠背连播即自然拼读感）。 */
+    private const val LETTER_PAUSE_MS = 0L
 
     fun build(word: Word, settings: AppSettings): List<SpeechSegment> {
         return if (word.isPhrase) phraseScript(word, settings) else wordScript(word, settings)
