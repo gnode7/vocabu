@@ -114,6 +114,41 @@ class SpeechScriptTest {
         assertEquals(listOf("期待"), segs.map { it.text })
     }
 
+    // ---- 单词播报中文翻译（0012 C1，PRD 修订 #27；默认关，段序 = 读音 → 拼写 → 翻译）----
+
+    @Test
+    fun `单词翻译开 读音拼写后追加中文段`() {
+        val segs = SpeechScriptBuilder.build(word(), AppSettings(wordPlayTranslation = true))
+        assertEquals(listOf("apple", "A", "P", "P", "L", "E", "苹果"), segs.map { it.text })
+        // 末段 = 中文翻译：语言 ZH、无尾停顿；前段（末字母）停顿沿用字母间 0.3s
+        assertEquals(SpeechLang.ZH, segs.last().lang)
+        assertEquals(0L, segs.last().pauseAfterMillis)
+        assertEquals(300L, segs[segs.lastIndex - 1].pauseAfterMillis)
+    }
+
+    @Test
+    fun `单词翻译关 维持读音拼写两段`() {
+        val segs = SpeechScriptBuilder.build(word(), AppSettings(wordPlayTranslation = false))
+        assertEquals(listOf("apple", "A", "P", "P", "L", "E"), segs.map { it.text })
+    }
+
+    @Test
+    fun `单词翻译开但翻译空白 不追加空段`() {
+        val blank = Word.of(
+            text = "apple", phonetic = null, pos = "n", translation = "  ",
+            createdAt = t0, updatedAt = t0, id = 1,
+        )
+        val segs = SpeechScriptBuilder.build(blank, AppSettings(wordPlayTranslation = true))
+        assertEquals(listOf("apple", "A", "P", "P", "L", "E"), segs.map { it.text })
+    }
+
+    @Test
+    fun `单词翻译开关不影响词组脚本`() {
+        val segs = SpeechScriptBuilder.build(phrase(), AppSettings(wordPlayTranslation = true))
+        // 词组走 phraseScript（phrasePlayTranslation 控制），单词开关不追加重复翻译段
+        assertEquals(listOf("look forward to", "期待"), segs.map { it.text })
+    }
+
     // ---- 回忆会话（ISSUE-006；PRD §2.4.2 / §2.4.3）----
 
     @Test

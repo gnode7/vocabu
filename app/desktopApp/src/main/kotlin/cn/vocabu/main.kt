@@ -44,11 +44,13 @@ fun main() = application {
 
     // 播控装配（ISSUE-005 接缝 + ISSUE-008 异步化）：后台编排 daemon 线程，UI 回调切 EDT；
     // 播报响应（PRD §6.1 <2s）：缓存命中毫秒级，未命中一次 HTTP ~数百 ms
+    // logger（0012 B1）：fetch 失败留痕 stderr，`[vocabu]` 前缀与 TTS 客户端 `[vocabu-tts]` 区分层级
     val speechController = SpeechController(
         ttsClient, audioPlayer,
         taskDispatcher = { block -> Thread(block, "vocabu-tts").apply { isDaemon = true }.start() },
         notifyDispatcher = { block -> SwingUtilities.invokeLater(block) },
         sleeper = { Thread.sleep(it) },
+        logger = { System.err.println("[vocabu] $it") },
     )
     val errorCuePlayer = ErrorCuePlayer()
 

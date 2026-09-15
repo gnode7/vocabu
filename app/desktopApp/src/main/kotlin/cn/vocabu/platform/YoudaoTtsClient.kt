@@ -23,6 +23,8 @@ import kotlin.io.path.name
  *   LRU 决策在 core 单测覆盖，本类只做磁盘 IO 薄壳（焦点 TDD 划界）。
  * - 缓存存原始 MP3 字节（spike 实测 audio/mpeg，MPEG-1/2 LSF 混流），播放时 JLayer 解码。
  * - 断网：命中正常播、未命中静默跳过且流程不阻断（验收②）。
+ * - 失败留痕 + IO 重试（0012 B1/B3）：所有失败原因打 stderr（`[vocabu-tts]` 前缀，用户复现取证口径）；
+ *   仅 IOException 重试 1 次（消解「读音刚播完提交 → 连接被关」窗口期竞态），业务性失败不重试防重复出声。
  */
 class YoudaoTtsClient(private val cacheDir: Path) : TtsClient {
 
@@ -39,26 +41,60 @@ class YoudaoTtsClient(private val cacheDir: Path) : TtsClient {
             if (TtsCachePolicy.kindOf(text) == TtsCachePolicy.DIR_WORDS) touch(file)
             return TtsAudio(Files.readAllBytes(file), MIME)
         }
-        val bytes = httpFetch(YoudaoTtsUrl.build(text, voice)) ?: return null
+        val bytes = httpFetch(text, voice, YoudaoTtsUrl.build(text, voice)) ?: return null
         store(file, bytes)
         return TtsAudio(bytes, MIME)
     }
 
-    /** 直连下载（spike 证据：无特殊请求头，200 + audio/mpeg）。 */
-    private fun httpFetch(url: String): ByteArray? = try {
+    /** 单次 HTTP 尝试结果（0012 B1/B3）：Ok = 成功；Failure 携带留痕原因，io = 是否值得重试。 */
+    private sealed interface Attempt {
+        data class Ok(val bytes: ByteArray) : Attempt
+        data class Failure(val reason: String, val io: Boolean = false) : Attempt
+    }
+
+    /**
+     * 直连下载（spike 证据：无特殊请求头，200 + audio/mpeg）+ 0012 B1/B3：
+     * - 留痕：失败原因（HTTP 码 / 异常类名）打 stderr，不改控制流（仍返回 null 静默，PRD §4.4）。
+     * - 重试：仅 IOException（connect/read/断连）重试 1 次，间隔 300ms；两次失败合并为一条留痕。
+     *   非 200 / 空 body / SecurityException 为业务性失败，不重试（防重复请求与重复出声）。
+     */
+    private fun httpFetch(text: String, voice: TtsVoice, url: String): ByteArray? {
+        var retried = false
+        var outcome = attempt(url)
+        if (outcome is Attempt.Failure && outcome.io) {
+            retried = true
+            try {
+                Thread.sleep(RETRY_DELAY_MILLIS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+            outcome = attempt(url)
+        }
+        if (outcome is Attempt.Ok) return outcome.bytes
+        val failure = outcome as Attempt.Failure
+        System.err.println(
+            "[vocabu-tts] fetch失败 text=$text voice=$voice 原因=${failure.reason}${if (retried) "（重试1次后仍失败）" else ""}",
+        )
+        return null
+    }
+
+    private fun attempt(url: String): Attempt = try {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.connectTimeout = TIMEOUT_MILLIS
         conn.readTimeout = TIMEOUT_MILLIS
         try {
-            if (conn.responseCode != 200) null
-            else conn.inputStream.use { it.readBytes() }.takeIf { it.isNotEmpty() }
+            val code = conn.responseCode
+            if (code != 200) Attempt.Failure("HTTP $code")
+            else conn.inputStream.use { it.readBytes() }
+                .takeIf { it.isNotEmpty() }?.let { Attempt.Ok(it) }
+                ?: Attempt.Failure("空body")
         } finally {
             conn.disconnect()
         }
-    } catch (_: IOException) {
-        null
-    } catch (_: SecurityException) {
-        null
+    } catch (e: IOException) {
+        Attempt.Failure("IOException ${e.javaClass.simpleName}: ${e.message}", io = true)
+    } catch (e: SecurityException) {
+        Attempt.Failure("SecurityException: ${e.message}")
     }
 
     /** 原子落盘（tmp+move 防半截文件）+ words 目录超限淘汰。 */
@@ -101,5 +137,6 @@ class YoudaoTtsClient(private val cacheDir: Path) : TtsClient {
     private companion object {
         const val MIME = "audio/mpeg"
         const val TIMEOUT_MILLIS = 3_000
+        const val RETRY_DELAY_MILLIS = 300L
     }
 }

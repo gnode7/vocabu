@@ -175,6 +175,13 @@ class PersistenceTest {
         assertEquals(false, loaded.correctionReplay)
     }
 
+    @Test
+    fun `wordPlayTranslation默认关 开启后往返无损`() {
+        assertEquals(false, settingsRepo.get().wordPlayTranslation) // 0012 C1 默认关
+        settingsRepo.save(AppSettings(wordPlayTranslation = true))
+        assertEquals(true, settingsRepo.get().wordPlayTranslation)
+    }
+
     // ---- 每日统计增量落账（PRD 5.3 v1.2，修订 #21）----
 
     @Test
@@ -222,5 +229,53 @@ class PersistenceTest {
 
         val fileNames = Files.walk(dir).use { stream -> stream.map { it.fileName.toString() }.toList() }
         assertTrue(fileNames.contains("vocabu.db"))
+    }
+
+    // ---- 旧库迁移（0012 C1：已存在库跳过建表，加列走幂等 ALTER，旧行按 DEFAULT 读）----
+
+    @Test
+    fun `旧库迁移补wordPlayTranslation列 默认false且重开往返`() {
+        val dir = Files.createTempDirectory("vocabu-mig")
+        val dbFile = dir.resolve("vocabu.db")
+        // 手工建 0012 之前的旧版 appSettings（无 wordPlayTranslation 列）并落一行默认设置
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$dbFile").use { conn ->
+            conn.createStatement().use { st ->
+                st.execute(
+                    """
+                    CREATE TABLE appSettings (
+                        id INTEGER PRIMARY KEY CHECK (id = 1),
+                        dailyNewWordCount INTEGER NOT NULL DEFAULT 20,
+                        facetCatchUpQuota INTEGER NOT NULL DEFAULT 5,
+                        autoPlayOnSelect INTEGER NOT NULL DEFAULT 0,
+                        wordPlayPronunciation INTEGER NOT NULL DEFAULT 1,
+                        wordPlaySpelling INTEGER NOT NULL DEFAULT 1,
+                        phrasePlayPronunciation INTEGER NOT NULL DEFAULT 1,
+                        phrasePlayTranslation INTEGER NOT NULL DEFAULT 1,
+                        recallDirection TEXT NOT NULL DEFAULT 'mixed',
+                        recallDisplayCount INTEGER NOT NULL DEFAULT 10,
+                        recallEn2ZhWordPlaySpelling INTEGER NOT NULL DEFAULT 1,
+                        recallEn2ZhPhrasePlayTranslation INTEGER NOT NULL DEFAULT 0,
+                        recallZh2EnAutoPlay INTEGER NOT NULL DEFAULT 0,
+                        testMode TEXT NOT NULL DEFAULT 'mixed',
+                        correctionReplay INTEGER NOT NULL DEFAULT 1,
+                        dictationEasyThreshold INTEGER NOT NULL DEFAULT 5,
+                        dictationGoodThreshold INTEGER NOT NULL DEFAULT 10,
+                        ttsService TEXT NOT NULL DEFAULT 'youdao'
+                    );
+                    INSERT INTO appSettings(id) VALUES (1);
+                    """.trimIndent(),
+                )
+            }
+        }
+
+        // 打开旧库：迁移补列，读设置不崩且按 DEFAULT 0 = false 读（派单口径）
+        val db = VocabuDatabaseFactory.createAt(dbFile)
+        val loaded = SettingsRepositoryImpl(db).get()
+        assertEquals(false, loaded.wordPlayTranslation)
+
+        // 开启 → 保存 → 重开再读：迁移幂等（第二次打开已含列则跳过 ALTER）且往返无损
+        SettingsRepositoryImpl(db).save(loaded.copy(wordPlayTranslation = true))
+        val reopened = VocabuDatabaseFactory.createAt(dbFile)
+        assertEquals(true, SettingsRepositoryImpl(reopened).get().wordPlayTranslation)
     }
 }

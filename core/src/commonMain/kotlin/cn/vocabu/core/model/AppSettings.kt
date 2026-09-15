@@ -12,6 +12,8 @@ data class AppSettings(
     val wordPlayPronunciation: Boolean = true,
     /** 单词播报字母拼写 */
     val wordPlaySpelling: Boolean = true,
+    /** 单词播报中文翻译（0012 C1 新增，默认关；旧库无此列按 DEFAULT 0 = false 读） */
+    val wordPlayTranslation: Boolean = false,
     /** 词组播报读音 */
     val phrasePlayPronunciation: Boolean = true,
     /** 词组播报中文翻译 */

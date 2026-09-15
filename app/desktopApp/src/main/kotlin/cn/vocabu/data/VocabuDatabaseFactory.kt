@@ -18,14 +18,39 @@ object VocabuDatabaseFactory {
         return VocabuDatabase(driver)
     }
 
-    /** 在 [dbFile] 创建/打开数据库；目录不存在则创建。 */
+    /** 在 [dbFile] 创建/打开数据库；目录不存在则创建。已存在的旧库走幂等迁移（0012 C1）。 */
     fun createAt(dbFile: Path): VocabuDatabase {
         dbFile.parent?.createDirectories()
         val existed = java.nio.file.Files.exists(dbFile)
         val driver = JdbcSqliteDriver("jdbc:sqlite:${dbFile.toAbsolutePath()}")
         enableForeignKeys(driver)
-        if (!existed) VocabuDatabase.Schema.create(driver)
+        if (!existed) VocabuDatabase.Schema.create(driver) else migrateLegacy(driver)
         return VocabuDatabase(driver)
+    }
+
+    /**
+     * 旧库幂等迁移（0012 C1）：现状无 schema 版本机制，已存在库跳过 Schema.create，
+     * 加列须手动 ALTER。查 pragma_table_info 缺列则补（旧行按 DEFAULT 0 = false 读，符合派单口径）。
+     * TODO 正式 schema 版本迁移机制挂账（0012），列清单增长后此处需换成版本化脚本。
+     */
+    private fun migrateLegacy(driver: JdbcSqliteDriver) {
+        val columns = driver.executeQuery(
+            null,
+            "PRAGMA table_info(appSettings)",
+            { cursor ->
+                app.cash.sqldelight.db.QueryResult.Value(buildList {
+                    while (cursor.next().value) add(cursor.getString(1))
+                })
+            },
+            0,
+        ).value ?: emptyList()
+        if ("wordPlayTranslation" !in columns) {
+            driver.execute(
+                null,
+                "ALTER TABLE appSettings ADD COLUMN wordPlayTranslation INTEGER NOT NULL DEFAULT 0",
+                0,
+            )
+        }
     }
 
     /** 用户数据目录下的数据库文件（PRD §6.3）。 */

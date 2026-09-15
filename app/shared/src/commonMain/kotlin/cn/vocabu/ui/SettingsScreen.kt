@@ -51,6 +51,7 @@ class SettingsViewModel(private val settings: SettingsRepository) {
     var correctionReplay by mutableStateOf(s.correctionReplay)
     var wordPlayPronunciation by mutableStateOf(s.wordPlayPronunciation)
     var wordPlaySpelling by mutableStateOf(s.wordPlaySpelling)
+    var wordPlayTranslation by mutableStateOf(s.wordPlayTranslation)
     var phrasePlayPronunciation by mutableStateOf(s.phrasePlayPronunciation)
     var phrasePlayTranslation by mutableStateOf(s.phrasePlayTranslation)
     var recallEn2ZhWordPlaySpelling by mutableStateOf(s.recallEn2ZhWordPlaySpelling)
@@ -91,6 +92,7 @@ class SettingsViewModel(private val settings: SettingsRepository) {
                 autoPlayOnSelect = autoPlayOnSelect,
                 wordPlayPronunciation = wordPlayPronunciation,
                 wordPlaySpelling = wordPlaySpelling,
+                wordPlayTranslation = wordPlayTranslation,
                 phrasePlayPronunciation = phrasePlayPronunciation,
                 phrasePlayTranslation = phrasePlayTranslation,
                 recallDirection = recallDirection,
@@ -153,6 +155,7 @@ fun SettingsScreen(vm: SettingsViewModel, todayTotal: Int, onSaved: () -> Unit =
         SettingsGroup("播报设置") {
             SwitchSetting("单词-播报读音", null, vm.wordPlayPronunciation) { vm.wordPlayPronunciation = it }
             SwitchSetting("单词-播报字母拼写", null, vm.wordPlaySpelling) { vm.wordPlaySpelling = it }
+            SwitchSetting("单词-播报中文翻译", "读音→拼写后追加中文翻译（0012 新增，默认关）", vm.wordPlayTranslation) { vm.wordPlayTranslation = it }
             SwitchSetting("词组-播报读音", null, vm.phrasePlayPronunciation) { vm.phrasePlayPronunciation = it }
             SwitchSetting("词组-播报中文翻译", null, vm.phrasePlayTranslation) { vm.phrasePlayTranslation = it }
         }

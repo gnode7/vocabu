@@ -19,7 +19,7 @@ data class SpeechSegment(
 
 /**
  * 播报脚本生成（纯函数，ISSUE-005；PRD §2.3.3、§4.2、§4.3）：
- * - 单词默认：读音 → 0.5s → 字母拼写（每字母单独一段，字母间 0.3s）
+ * - 单词默认：读音 → 0.5s → 字母拼写（每字母单独一段，字母间 0.3s）；「单词播报中文翻译」开启时末尾追加翻译段（0012 C1，默认关）
  * - 词组默认：读音 → 0.5s → 中文翻译
  * - 播报内容按设置多选裁剪；全关时返回空脚本（不播）。
  */
@@ -123,6 +123,10 @@ object SpeechScriptBuilder {
             word.text.forEach { ch ->
                 segments += SpeechSegment(ch.uppercaseChar().toString(), SpeechLang.EN, LETTER_PAUSE_MS)
             }
+        }
+        // 0012 C1：单词播报中文翻译（默认关，PRD 修订 #27）；段序 = 读音 → 拼写 → 翻译
+        if (settings.wordPlayTranslation && word.translation.isNotBlank()) {
+            segments += SpeechSegment(word.translation, SpeechLang.ZH, SEGMENT_PAUSE_MS)
         }
         return segments.trimTailPause()
     }

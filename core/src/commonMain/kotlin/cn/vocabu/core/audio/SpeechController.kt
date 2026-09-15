@@ -47,6 +47,8 @@ class SpeechController(
     private val notifyDispatcher: SpeechDispatcher = SpeechDispatcher.Direct,
     /** 休眠注入（毫秒）：生产传 Thread::sleep，测试注入记录型实现，core 不读时钟。 */
     private val sleeper: (Long) -> Unit = {},
+    /** 失败留痕注入（0012 B1）：默认 no-op（Fake/测试零感知），desktop 传 stderr。仅诊断，不改控制流。 */
+    private val logger: (String) -> Unit = {},
 ) {
 
     private val generation = AtomicInt(0)
@@ -85,13 +87,19 @@ class SpeechController(
 
         val fetched = ArrayList<Pair<TtsAudio, SpeechSegment>>(segments.size)
         for (seg in segments) {
-            if (generation.load() != gen) return // 过时：丢弃 fetch 结果
-            val audio = tts.fetch(seg.text, voiceFor(seg.lang)) ?: continue // 失败静默跳过（含停顿）
+            if (generation.load() != gen) return // 过时：丢弃 fetch 结果（正常取消，不留痕）
+            val audio = tts.fetch(seg.text, voiceFor(seg.lang))
+            if (audio == null) {
+                // 0012 B1：失败跳段留痕（PRD §4.4 静默语义不变），desktop 侧 TTS 客户端另有原因级留痕
+                logger("段拉取失败跳过 text=${seg.text} voice=${voiceFor(seg.lang)}")
+                continue
+            }
             fetched += audio to seg
         }
-        if (generation.load() != gen) return // 过时：fetch 完成后仍需校验，回调一并取消
+        if (generation.load() != gen) return // 过时：fetch 完成后仍需校验，回调一并取消（不留痕）
 
         if (fetched.isEmpty()) {
+            if (segments.isNotEmpty()) logger("全部段拉取失败，播报未发生 共${segments.size}段")
             notify(gen, onSilent)
             return
         }
