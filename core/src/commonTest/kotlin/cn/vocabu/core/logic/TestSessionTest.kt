@@ -403,4 +403,77 @@ class TestSessionTest {
         // 越界回看无效
         assertEquals(0, TestSessionOps.prev(s).cursor)
     }
+
+    // ---- 播报计时联动（ISSUE-008 焦点③：听写计时起点 = 播报结束）----
+
+    @Test
+    fun `播报hold_计时冻结_放行后起计`() {
+        val s0 = TestSessionBuilder.build(listOf(word(1)), emptyMap(), "dictation", Random(1), t0)
+        // 词条激活 hold：tick 冻结
+        val held = TestSessionOps.holdTiming(s0)
+        assertTrue(held.currentItem!!.timingHeld)
+        assertEquals(0, TestSessionOps.tick(held, 5).currentItem!!.zhElapsed)
+        assertEquals(0, TestSessionOps.tick(held, 5).currentItem!!.enElapsed)
+        // 放行（onFinished/onSilent 同构）后正常起计
+        val released = TestSessionOps.releaseTiming(held, held.cursor)
+        assertFalse(released.currentItem!!.timingHeld)
+        assertEquals(2, TestSessionOps.tick(released, 2).currentItem!!.zhElapsed)
+    }
+
+    @Test
+    fun `播报hold_重复hold幂等_默写不hold`() {
+        // 重复 hold 幂等
+        val s = TestSessionBuilder.build(listOf(word(1)), emptyMap(), "dictation", Random(1), t0)
+        assertEquals(TestSessionOps.holdTiming(s), TestSessionOps.holdTiming(TestSessionOps.holdTiming(s)))
+        // 默写词条不参与 hold（replay/批改回放无联动）
+        val w = TestSessionBuilder.build(listOf(word(1)), emptyMap(), "writing", Random(1), t0)
+        assertEquals(w, TestSessionOps.holdTiming(w))
+    }
+
+    @Test
+    fun `迟到放行_已判定no_op`() {
+        // 手快场景：播报中提交 → 判定落账 → 迟到的放行回调不得改动状态
+        var s = TestSessionBuilder.build(listOf(word(1)), emptyMap(), "dictation", Random(1), t0)
+        s = TestSessionOps.holdTiming(s)
+        s = TestSessionOps.type(s, TestBox.ZH, "释义1")
+        s = TestSessionOps.type(s, TestBox.EN, "word1")
+        val judged = TestSessionOps.submit(s, 5, 10, t0, ::sm2)!!.session
+        val after = TestSessionOps.releaseTiming(judged, judged.cursor)
+        assertEquals(judged, after)
+    }
+
+    @Test
+    fun `迟到放行_不误放新词条hold`() {
+        val words = listOf(word(1, text = "apple"), word(2, text = "bee"))
+        var s = TestSessionBuilder.build(words, emptyMap(), "dictation", Random(1), t0)
+        val cursorA = s.cursor
+        s = TestSessionOps.holdTiming(s, cursorA) // 词条 A hold
+        // A 播报中提交 → 判定 → 手快翻到 B
+        s = TestSessionOps.type(s, TestBox.ZH, "x")
+        s = TestSessionOps.type(s, TestBox.EN, "x")
+        s = TestSessionOps.submit(s, 5, 10, t0, ::sm2)!!.session
+        s = TestSessionOps.next(s, t0, Random(1))
+        val cursorB = s.cursor
+        assertTrue(cursorB != cursorA)
+        s = TestSessionOps.holdTiming(s, cursorB) // B hold（新播报进行中）
+        // A 的迟到放行到达：不得放行 B
+        s = TestSessionOps.releaseTiming(s, cursorA)
+        assertTrue(s.queue[cursorB].timingHeld)
+        // B 自己的放行才生效
+        s = TestSessionOps.releaseTiming(s, cursorB)
+        assertFalse(s.queue[cursorB].timingHeld)
+    }
+
+    @Test
+    fun `重考_残留hold清理_新轮可正常起计`() {
+        // 播报中提交（hold 未放行即判定）→ Forget +60s 整词重考 → 复活条目必须清 hold
+        var s = TestSessionBuilder.build(listOf(word(1)), emptyMap(), "dictation", Random(1), t0)
+        s = TestSessionOps.holdTiming(s)
+        val judged = TestSessionOps.submit(s, 5, 10, t0, ::sm2)!!.session // 两框留空全 Forget
+        s = TestSessionOps.next(judged, t0, Random(1))
+        assertTrue(s.finished)
+        s = TestSessionOps.advance(s.copy(finished = false), t0 + 61.seconds, Random(1))
+        assertFalse(s.currentItem!!.timingHeld) // 残留 hold 已清
+        assertEquals(1, TestSessionOps.tick(s, 1).currentItem!!.zhElapsed) // 新轮计时正常
+    }
 }

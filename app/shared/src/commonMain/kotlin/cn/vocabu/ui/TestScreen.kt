@@ -69,6 +69,9 @@ import cn.vocabu.core.repo.WordRepository
 import kotlin.random.Random
 import kotlin.time.Instant
 
+/** 批改回放延迟：告警音先响，回放随后（ISSUE-008 焦点⑤）。 */
+private const val CORRECTION_REPLAY_DELAY_MS = 200L
+
 /**
  * 考察会话（ISSUE-009；PRD §2.5）：单一入口按「考察方式」执行——
  * 听写（播报读音 → 中文/英文两框作答、两段回车、每框独立倒计时圈、批改徽章/红框/右侧正确答案/告警音）
@@ -81,8 +84,8 @@ class TestViewModel(
     private val records: LearningRecordRepository,
     private val settings: SettingsRepository,
     private val studyLog: StudyLogRepository,
-    /** 播报脚本由 VM 组装（听写 = 读音；答错回放 = 读音+拼写/释义），装配层注入播放。 */
-    val speak: (List<SpeechSegment>) -> Unit,
+    /** 播报脚本由 VM 组装，装配层注入播放（ISSUE-008 焦点③④：startDelay + 完成回调接缝）。 */
+    val speak: (List<SpeechSegment>, Long, () -> Unit, () -> Unit) -> Unit,
     val stopSpeak: () -> Unit = {},
     /** 短促告警音接缝（真实音效 ISSUE-008 装配；Fake 阶段静默）。 */
     val errorCue: () -> Unit = {},
@@ -177,8 +180,12 @@ class TestViewModel(
         if (wrong.isNotEmpty()) {
             errorCue()
             if (st.correctionReplay) {
-                // 提交时当前词即被批改词（submit 不推进 cursor）
-                speak(SpeechScriptBuilder.buildCorrectionReplay(s.currentItem!!.word, wrong.map { it.facet }, st))
+                // 提交时当前词即被批改词（submit 不推进 cursor）；
+                // 告警音在前，回放 +200ms 延迟避免重叠（ISSUE-008 焦点⑤）
+                speak(
+                    SpeechScriptBuilder.buildCorrectionReplay(s.currentItem!!.word, wrong.map { it.facet }, st),
+                    CORRECTION_REPLAY_DELAY_MS, {}, {},
+                )
             }
         }
     }
@@ -201,19 +208,30 @@ class TestViewModel(
         session = session?.let { TestSessionOps.tick(it, 1) }
     }
 
-    /** 手动重听（听写词条播报读音）。 */
+    /** 手动重听（听写词条播报读音，不参与计时联动）。 */
     fun replayDictation() {
         val item = session?.currentItem ?: return
         if (item.part == TestPart.DICTATION && item.zhJudgment == null && item.enJudgment == null) {
-            speak(SpeechScriptBuilder.buildDictation(item.word))
+            speak(SpeechScriptBuilder.buildDictation(item.word), 0, {}, {})
         }
     }
 
-    /** 听写词条激活自动播报读音（已批改回看/默写词条不播）。 */
+    /**
+     * 听写词条激活自动播报读音（已批改回看/默写词条不播）。
+     * 计时联动（ISSUE-008 焦点③，PRD §4.4）：先 hold 冻结计时 → 播报结束（onFinished）
+     * 或播报未发生（onSilent：空脚本/全部失败）才放行起计。回调闭包捕获发起词条的
+     * cursor，放行时由 core 校验目标仍 hold 且未判定——迟到放行 no-op 三不。
+     */
     private fun speakForItem(s: TestSession) {
         val item = s.currentItem ?: return
         if (item.part == TestPart.DICTATION && item.zhJudgment == null && item.enJudgment == null) {
-            speak(SpeechScriptBuilder.buildDictation(item.word))
+            val cursor = s.cursor
+            session = session?.let { TestSessionOps.holdTiming(it, cursor) }
+            speak(
+                SpeechScriptBuilder.buildDictation(item.word), 0,
+                onFinished@ { session = session?.let { TestSessionOps.releaseTiming(it, cursor) } },
+                onSilent@ { session = session?.let { TestSessionOps.releaseTiming(it, cursor) } },
+            )
         }
     }
 

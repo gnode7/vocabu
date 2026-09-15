@@ -35,7 +35,8 @@ object VocabuDatabaseFactory {
         driver.execute(null, "PRAGMA foreign_keys = ON", 0)
     }
 
-    private fun userDataDir(): Path {
+    /** 用户数据目录（PRD §6.3）：数据库与 TTS 缓存共用（ISSUE-008 提为 internal 复用，勿复制实现）。 */
+    internal fun userDataDir(): Path {
         val os = System.getProperty("os.name").lowercase()
         val home = Path.of(System.getProperty("user.home"))
         return when {

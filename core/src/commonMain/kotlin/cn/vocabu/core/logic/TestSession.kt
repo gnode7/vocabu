@@ -71,6 +71,8 @@ data class TestItem(
     /** 新学/复习口径：构建期确定的「账本面提交前是否有账」 */
     val hadZhRecord: Boolean = false,
     val hadEnRecord: Boolean = false,
+    /** 播报期间计时冻结（ISSUE-008 焦点③）：听写词条激活 hold，播报结束/静默放行后起计。 */
+    val timingHeld: Boolean = false,
 )
 
 /** 词粒度是否已完成批改（听写两框全判 / 默写英文框已判）。 */
@@ -206,15 +208,39 @@ object TestSessionOps {
         return session.copy(focusedBox = box)
     }
 
-    /** 焦点计时推进（UI 周期 tick）：仅累计当前条目、当前焦点框、未锁定未批改的框。 */
+    /** 焦点计时推进（UI 周期 tick）：仅累计当前条目、当前焦点框、未锁定未批改的框；播报 hold 期间不起计（008 焦点③）。 */
     fun tick(session: TestSession, deltaSeconds: Long = 1): TestSession {
         val item = session.currentItem ?: return session
         val box = session.focusedBox ?: return session
+        if (item.timingHeld) return session
         if (boxLocked(item, box) || boxJudged(item, box)) return session
         return session.updateCurrent(
             if (box == TestBox.ZH) item.copy(zhElapsed = item.zhElapsed + deltaSeconds)
             else item.copy(enElapsed = item.enElapsed + deltaSeconds),
         )
+    }
+
+    /**
+     * 播报 hold（ISSUE-008 焦点③，听写词条激活时置位）：播报结束前计时冻结。
+     * 仅听写、未判定条目可置位；重复置位幂等。
+     */
+    fun holdTiming(session: TestSession, cursor: Int = session.cursor): TestSession {
+        val item = session.queue.getOrNull(cursor) ?: return session
+        if (item.part != TestPart.DICTATION || item.timingHeld) return session
+        if (item.zhJudgment != null || item.enJudgment != null) return session
+        return session.updateAt(cursor, item.copy(timingHeld = true))
+    }
+
+    /**
+     * 播放放行（onFinished/onSilent 到达时）：仅当目标词条仍处于 timingHeld 且未判定才生效——
+     * 迟到放行 no-op 三不：不复活已冻结的计时/不误放新词条的 hold/不重复起计。
+     * 放行后该条目正常起计（onSilent = 播报未发生，回退展示时刻起计——两路径在 core 同构）。
+     */
+    fun releaseTiming(session: TestSession, cursor: Int): TestSession {
+        val item = session.queue.getOrNull(cursor) ?: return session
+        if (!item.timingHeld) return session
+        if (item.zhJudgment != null || item.enJudgment != null) return session
+        return session.updateAt(cursor, item.copy(timingHeld = false))
     }
 
     /** 听写第一段回车：锁定当前框并切焦点——锁定即终局，另一框可用则聚焦之，否则移交按钮。 */
@@ -345,7 +371,8 @@ object TestSessionOps {
             judgment.rating == Rating.FORGET && judgment.record.nextReviewTime <= now
         }
 
-    /** 开新轮：到期复活词（洗牌在前）+ 尚未开始的默写词（洗牌在后）——听写段循环完毕才轮到默写。 */
+    /** 开新轮：到期复活词（洗牌在前）+ 尚未开始的默写词（洗牌在后）——听写段循环完毕才轮到默写。
+     * 复活条目重置 timingHeld（播报中提交→批改→重考的残留 hold 必须清，否则重考计时死锁）。 */
     private fun startRound(session: TestSession, dueItems: List<TestItem>, random: Random): TestSession {
         val revived = dueItems.map { item ->
             item.copy(
@@ -353,6 +380,7 @@ object TestSessionOps {
                 zhLocked = false, enLocked = false,
                 zhElapsed = 0, enElapsed = 0,
                 zhJudgment = null, enJudgment = null,
+                timingHeld = false,
             )
         }.shuffled(random)
         val pendingWriting = session.queue
@@ -371,6 +399,9 @@ object TestSessionOps {
 
     private fun TestSession.updateCurrent(item: TestItem): TestSession =
         copy(queue = queue.toMutableList().also { it[cursor] = item })
+
+    private fun TestSession.updateAt(index: Int, item: TestItem): TestSession =
+        copy(queue = queue.toMutableList().also { it[index] = item })
 
     private fun boxLocked(item: TestItem, box: TestBox): Boolean =
         if (box == TestBox.ZH) item.zhLocked else item.enLocked

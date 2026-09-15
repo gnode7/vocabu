@@ -19,6 +19,7 @@ dependencies {
     implementation(libs.sqldelight.runtime)
     implementation(libs.sqldelight.sqliteDriver)
     implementation(libs.poi.ooxml)
+    implementation(libs.jlayer) // MP3 解码（ISSUE-008 spike 选型：支持 MPEG-1/2/2.5 L3 全矩阵）
     testImplementation(libs.kotlin.test)
 }
 

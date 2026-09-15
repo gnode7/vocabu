@@ -21,15 +21,22 @@ class FakeTtsClient(
     }
 }
 
-/** Fake 播放器：记录操作序列（enqueue/cancelCurrent/clear）供断言，不真正发声。 */
+/** Fake 播放器：记录操作序列（enqueue/cancelCurrent/clear/onDrained）供断言，不真正发声。 */
 class FakeAudioPlayer : AudioPlayer {
     sealed interface Op {
         data class Enqueue(val audio: TtsAudio, val pauseAfterMillis: Long) : Op
         data object CancelCurrent : Op
         data object Clear : Op
+        /** 注册排空通知（ISSUE-008 焦点③编排）。 */
+        data object OnDrained : Op
     }
 
     val ops = mutableListOf<Op>()
+
+    /** 当前 pending 的排空通知（单次语义；clear 取消）。 */
+    private var drainAction: (() -> Unit)? = null
+
+    val hasPendingDrain: Boolean get() = drainAction != null
 
     override fun enqueue(audio: TtsAudio, pauseAfterMillis: Long) {
         ops += Op.Enqueue(audio, pauseAfterMillis)
@@ -41,5 +48,19 @@ class FakeAudioPlayer : AudioPlayer {
 
     override fun clear() {
         ops += Op.Clear
+        drainAction = null
+    }
+
+    override fun onDrained(action: () -> Unit) {
+        ops += Op.OnDrained
+        drainAction = action
+    }
+
+    /** 测试手动驱动：模拟队列自然播空。有 pending 则执行并返回 true，否则 false。 */
+    fun simulateDrained(): Boolean {
+        val action = drainAction ?: return false
+        drainAction = null
+        action()
+        return true
     }
 }
