@@ -389,7 +389,13 @@ private fun BrowseRow(
             .height(IntrinsicSize.Min)
             .background(bg)
             .hoverable(hoverInteraction)
-            .clickable(onClick = onSelect),
+            // indication=null：设计稿无 ripple，点击反馈由深底+指示条承接；
+            // 否则默认 ripple 悬停层(≈onSurface 8%)叠在自绘悬停底色上，反比选中态(4.5%)深
+            .clickable(
+                interactionSource = hoverInteraction,
+                indication = null,
+                onClick = onSelect,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 选中指示条：3dp 深色（设计稿 .t-row.selected 左侧 inset）

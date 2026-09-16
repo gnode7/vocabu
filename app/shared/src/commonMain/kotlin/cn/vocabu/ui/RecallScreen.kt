@@ -401,7 +401,12 @@ private fun RecallRow(
             .height(IntrinsicSize.Min)
             .background(bg)
             .hoverable(hoverInteraction)
-            .clickable(onClick = onSelectAndSpeak),
+            // indication=null：同 HomeScreen 行组件——ripple 悬停层会反比选中态深
+            .clickable(
+                interactionSource = hoverInteraction,
+                indication = null,
+                onClick = onSelectAndSpeak,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 选中指示条（同通览 .t-row.selected）
