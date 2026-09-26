@@ -4,6 +4,7 @@
 > 效力：M3 Expressive 转正后的**首份 UI 验收基准**。每条规则都有 PoC 实证或既有文档出处，条条可追溯；后续页面实现以本规范为准，规范未覆盖处遵循 Material 3 官方规范并在 PRD 层补充。
 > 修订：规则变更须出修订记录（日期+条目+依据）。
 > - v1（2026-09-26）：§3.2 评级四色 + §3.3 计时三色经用户拍板锁定（红 `#B3261E` / 橘 `#E8710A` / 黄 `#F9AB00` / 绿 `#146C2E`）；§3.2 新增 `RatedContentAlpha`（收编 RecallScreen 存量 0.45f）。v0 其余条款不变。
+> - v1.1（2026-09-26）：§3.3 新增 `TimerTrackColor`（`#22000000` 计时圈轨道底色，TestScreen 走查发现的 009 存量值收编，同 §3.1 存量收编模式）。
 
 ---
 
@@ -98,6 +99,7 @@ PRD 口径（L473）：倒计时圈 绿→黄→走满橙。同族复用（一�
 | `TimerSafeColor` | `#146C2E` | 计时充足（绿） |
 | `TimerWarnColor` | `#F9AB00` | 计时过半预警（黄） |
 | `TimerOverColor` | `#E8710A` | 走满（橙） |
+| `TimerTrackColor` | `#22000000`（黑 13%） | 计时圈轨道底色（009 存量走查收编，RingBadge 背景圈） |
 
 ### 3.4 状态矩阵（v0 声明范围）
 
@@ -135,5 +137,6 @@ v0 仅锁 hover / selected 两态（010 已踩坑区 + PoC 已验证）。presse
 - 三态 alpha：010 walkthrough 修复批次（HomeScreen/RecallScreen 现状）
 - 评级四色/计时色：PRD §2.4（L274）/ §2.5（L473）
 - v1 色值锁定：2026-09-26 用户拍板（群 22:54，M3 基准建议值原样确认）；文件名沿用 v0 落档名，版本演进以文档头为准
+- TimerTrackColor：TestScreen RingBadge 背景圈存量（20619c6，009 实现），2026-09-26 v1 落码走查收编
 - 组件边界/引库白名单：调研报告 `research-cmp-ui-libs.md`（2026-09-17）
 - MotionScheme 双基座：PoC A 区/C 区实测（noshape 实验全绿）
