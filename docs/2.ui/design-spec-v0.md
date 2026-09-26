@@ -1,8 +1,9 @@
-# vocabu 设计规范 v0
+# vocabu 设计规范
 
-> 版本：v0（转正基线）｜日期：2026-09-26｜作者：设计匠人
-> 效力：M3 Expressive 转正后的**首份 UI 验收基准**。v0 = 每条规则都有 PoC 实证或既有文档出处，条条可追溯；后续页面实现以本规范为准，规范未覆盖处遵循 Material 3 官方规范并在 PRD 层补充。
-> 修订：规则变更须出修订记录（日期+条目+依据），v0→v1 由用户拍板升级。
+> 版本：v1（色值锁定版）｜日期：2026-09-26｜作者：设计匠人
+> 效力：M3 Expressive 转正后的**首份 UI 验收基准**。每条规则都有 PoC 实证或既有文档出处，条条可追溯；后续页面实现以本规范为准，规范未覆盖处遵循 Material 3 官方规范并在 PRD 层补充。
+> 修订：规则变更须出修订记录（日期+条目+依据）。
+> - v1（2026-09-26）：§3.2 评级四色 + §3.3 计时三色经用户拍板锁定（红 `#B3261E` / 橘 `#E8710A` / 黄 `#F9AB00` / 绿 `#146C2E`）；§3.2 新增 `RatedContentAlpha`（收编 RecallScreen 存量 0.45f）。v0 其余条款不变。
 
 ---
 
@@ -72,24 +73,31 @@ alpha03 `MaterialShapes.Companion` 形状常量全部 **internal**，第三方�
 
 硬规则：新页面禁止内联 alpha 魔法数，一律引 token（实现建议：shared ui 层单文件 `VocabuTokens.kt`，010 存量两处迁移随下批走查顺手做）。
 
-### 3.2 评级四色（语义色，色值待拍板）
+### 3.2 评级语义色（v1 锁定：2026-09-26 用户拍板，M3 基准值）
 
 PRD §2.4 口径（L274）：评级 1→4 = 红（Forget）/ 橘（Hard）/ 黄（Good）/ 绿（Easy），点亮即整条填充该色。
 
-v0 建议起点（M3 基准色板，**待用户拍板后锁定**）：
-
-| 评级 | 建议值（light） | 来源 |
+| token | 值（light） | 语义 |
 |---|---|---|
-| 1 Forget | error `#B3261E` | M3 baseline error |
-| 2 Hard | `#E8710A`（M3 tertiary 橙系候选） | 待拍板 |
-| 3 Good | `#F9AB00`（amber，深色文字场景注意对比度） | 待拍板 |
-| 4 Easy | `#146C2E`（green 系候选） | 待拍板 |
+| `RatingForgetColor` | `#B3261E`（M3 baseline error） | 1 Forget |
+| `RatingHardColor` | `#E8710A`（tertiary 橘系） | 2 Hard |
+| `RatingGoodColor` | `#F9AB00`（amber） | 3 Good |
+| `RatingEasyColor` | `#146C2E`（green 系） | 4 Easy |
+| `RatedContentAlpha` | onSurface @ 45% | 已评级条目内容降权（收编 RecallScreen 存量 0.45f；内容降权语义，与 §3.1 overlay 家族分组隔离，不混挂） |
 
-dark 模式本项目暂无（PRD 无此需求），色值仅 light。
+- 黄底（`#F9AB00`）上文字用深色（onSurface）保证对比度。
+- dark 模式本项目暂无（PRD 无此需求），色值仅 light。
+- 色值 token 与 §3.1 alpha token 同住 `VocabuTokens.kt`，实现层照抄本表命名，禁内联 hex。
 
-### 3.3 计时三色
+### 3.3 计时三色（v1 锁定：随 §3.2 同族拍板）
 
-PRD 口径（L473）：倒计时圈 绿→黄→走满橙。色值随 §3.2 拍板一并定（建议同族：绿 `#146C2E` / 黄 `#F9AB00` / 橙 `#E8710A`），一个色族养两个语义，避免五颜六色。
+PRD 口径（L473）：倒计时圈 绿→黄→走满橙。同族复用（一个色族养两个语义，避免五颜六色）：
+
+| token | 值 | 语义 |
+|---|---|---|
+| `TimerSafeColor` | `#146C2E` | 计时充足（绿） |
+| `TimerWarnColor` | `#F9AB00` | 计时过半预警（黄） |
+| `TimerOverColor` | `#E8710A` | 走满（橙） |
 
 ### 3.4 状态矩阵（v0 声明范围）
 
@@ -126,5 +134,6 @@ v0 仅锁 hover / selected 两态（010 已踩坑区 + PoC 已验证）。presse
 - toShape 禁用依据：归因报告 `poc-render-attribution-20260926.md` §3.3/§4.2/§4.3（三后端一致实锤）
 - 三态 alpha：010 walkthrough 修复批次（HomeScreen/RecallScreen 现状）
 - 评级四色/计时色：PRD §2.4（L274）/ §2.5（L473）
+- v1 色值锁定：2026-09-26 用户拍板（群 22:54，M3 基准建议值原样确认）；文件名沿用 v0 落档名，版本演进以文档头为准
 - 组件边界/引库白名单：调研报告 `research-cmp-ui-libs.md`（2026-09-17）
 - MotionScheme 双基座：PoC A 区/C 区实测（noshape 实验全绿）
