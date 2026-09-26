@@ -378,8 +378,8 @@ private fun BrowseRow(
     val hovered by hoverInteraction.collectIsHoveredAsState()
     // 悬停仅视觉预览高亮，不改变选中（PRD 修订 #28）；选中 = 深底色 + 左指示条，悬停 = 浅底色
     val bg = when {
-        selected -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.045f)
-        hovered -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.025f)
+        selected -> MaterialTheme.colorScheme.onSurface.copy(alpha = VocabuTokens.SelectedOverlayAlpha)
+        hovered -> MaterialTheme.colorScheme.onSurface.copy(alpha = VocabuTokens.HoverOverlayAlpha)
         else -> MaterialTheme.colorScheme.surface
     }
 

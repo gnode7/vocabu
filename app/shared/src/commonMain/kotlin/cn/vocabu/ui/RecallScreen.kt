@@ -389,8 +389,8 @@ private fun RecallRow(
     // 悬停仅视觉预览高亮，不改变选中（PRD 修订 #28：选中态仅由点击/键盘上下键更新，样式可区分）
     val rated = item.rating != null
     val bg = when {
-        selected -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.045f)
-        hovered -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.025f)
+        selected -> MaterialTheme.colorScheme.onSurface.copy(alpha = VocabuTokens.SelectedOverlayAlpha)
+        hovered -> MaterialTheme.colorScheme.onSurface.copy(alpha = VocabuTokens.HoverOverlayAlpha)
         else -> MaterialTheme.colorScheme.surface
     }
     val contentColor = if (rated) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f) else Color.Unspecified
