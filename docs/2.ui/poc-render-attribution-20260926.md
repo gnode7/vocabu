@@ -82,3 +82,26 @@ SKIKO SOFTWARE），按 §4.1 预设决策链执行规避改造：
 
 后端无关已证（三路一致），云端绿即全平台绿，实机复验免除。规避后样张 = PoC 通过
 形态（B 区轮廓语言经 toPath 可得，核心结论不动），转正与《设计规范 v0》推进解锁。
+
+## §4.4 匠人走查记录（09-26 22:05，独立复验 + 归拢提交）
+
+**独立复验（不采信自报图，从改造提交亲自构建）**：checkout 改造提交于云端从零
+BUILD + `runExpressivePoc --screenshot` 复跑，产出 `poc-fixed-verify-jiangren.png`
+（归档 `shared/poc-final-pack-20260926/`），像素验收：
+- 17 条内容带与 §4.3 自报逐一对位（y=31~783 全结构回归）
+- B 区形状行三水平扫描（y=400/415/430）均 **7 段**，截线宽度随边数单调增
+  （y=415 行：40→63px）——7 形状几何正确独立证实
+- 背景 #FFFEF7 独立证实（死亡四图 #EADDFF）——§4.3 背景副作用双源确认
+
+**代码走查**：diff 2 文件单函数零侵入；`toShape` import 清除（`toPath`/`Canvas`/
+`scale` 替换）；7 份 poly 数据原样；fillColor 提出 lambda 外（Canvas 内非
+composable 作用域）细节正确；回退注释留存。
+
+**归拢提交（commit 归匠人，按 09-16 分工）**：改造原提交基于 dd2f243（与终锤
+db4b3f5 平行分叉），rebase 归拢 → **dd1f6f3**（终锤 + 规避 §4.3 合一），
+bundle 重发以此为准。
+
+**issue 素材包走查（shared/poc-issue-upstream-20260926/）**：issue-draft-en 技术
+事实与仓库一致（版本/最小复现/18 变体矩阵/措辞克制不猜机制）；走查修订两处——
+补「Additional observation」背景色污染现象（上游关注点），README hash 引用更新
+至 dd1f6f3。提交前待补项：用户实机 Windows 版本 / GPU 型号 / JDK 发行版三项。
