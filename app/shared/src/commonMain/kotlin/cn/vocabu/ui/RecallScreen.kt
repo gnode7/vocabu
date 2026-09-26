@@ -393,7 +393,7 @@ private fun RecallRow(
         hovered -> MaterialTheme.colorScheme.onSurface.copy(alpha = VocabuTokens.HoverOverlayAlpha)
         else -> MaterialTheme.colorScheme.surface
     }
-    val contentColor = if (rated) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f) else Color.Unspecified
+    val contentColor = if (rated) MaterialTheme.colorScheme.onSurface.copy(alpha = VocabuTokens.RatedContentAlpha) else Color.Unspecified
 
     Row(
         Modifier
@@ -554,10 +554,10 @@ private fun PeekCell(
 
 /** 评级色（PRD §2.4.2：红=忘 / 橘=困难 / 黄=记得 / 绿=熟练）；考察屏 RatingStrip 复用。 */
 internal fun ratingColor(rating: Rating): Color = when (rating) {
-    Rating.FORGET -> Color(0xFFDD5A4C)
-    Rating.HARD -> Color(0xFFF0993E)
-    Rating.GOOD -> Color(0xFFE4C441)
-    Rating.EASY -> Color(0xFF59B96A)
+    Rating.FORGET -> VocabuTokens.RatingForgetColor
+    Rating.HARD -> VocabuTokens.RatingHardColor
+    Rating.GOOD -> VocabuTokens.RatingGoodColor
+    Rating.EASY -> VocabuTokens.RatingEasyColor
 }
 
 internal val RATING_ORDER = listOf(Rating.FORGET, Rating.HARD, Rating.GOOD, Rating.EASY)

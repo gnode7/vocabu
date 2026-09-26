@@ -513,13 +513,13 @@ private fun RingBadge(elapsed: Long, easy: Long, good: Long, judgment: PartJudgm
         val j = judgment
         if (j == null) {
             val color = when (RingTimer.stage(elapsed, easy, good)) {
-                RingTimer.Stage.GREEN -> ratingColor(Rating.EASY)
-                RingTimer.Stage.YELLOW -> ratingColor(Rating.GOOD)
-                RingTimer.Stage.ORANGE -> ratingColor(Rating.HARD)
+                RingTimer.Stage.GREEN -> VocabuTokens.TimerSafeColor
+                RingTimer.Stage.YELLOW -> VocabuTokens.TimerWarnColor
+                RingTimer.Stage.ORANGE -> VocabuTokens.TimerOverColor
             }
             Canvas(Modifier.size(30.dp)) {
                 // 背景圈
-                drawCircle(color = Color(0x22000000), radius = size.minDimension / 2 - 2.dp.toPx(), style = Stroke(3.dp.toPx()))
+                drawCircle(color = VocabuTokens.TimerTrackColor, radius = size.minDimension / 2 - 2.dp.toPx(), style = Stroke(3.dp.toPx()))
                 // 进度弧（从顶部顺时针；走满冻结在 1）
                 val sweep = 360f * RingTimer.progress(elapsed, good)
                 drawArc(

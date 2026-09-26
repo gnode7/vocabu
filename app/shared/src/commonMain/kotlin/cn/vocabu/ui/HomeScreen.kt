@@ -494,7 +494,7 @@ private fun SpeakButton(playing: Boolean, onClick: () -> Unit) {
     val alpha by transition.animateFloat(
         initialValue = 1f,
         targetValue = 0.35f,
-        animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween(VocabuTokens.SpeakPulseDurationMillis), RepeatMode.Reverse),
         label = "spkAlpha",
     )
     val color = if (playing) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline
