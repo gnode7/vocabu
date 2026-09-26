@@ -4,6 +4,7 @@
 - 执行：阿斯克米（写代码/跑自测），待匠人走查
 - 环境：Linux x86_64 无头 Xvfb(:98, 1280×1280×24) / JDK21 / Gradle 9.7.1 / CMP 1.12.0 / Kotlin 2.4.20 / material3 1.12.0-alpha03
 - 渲染路径：Skiko `[SKIKO] warn: Fallback to next API` → `RenderException: Cannot create Linux GL context` 后回落软件渲染（Xvfb 无 GLX）
+- **判定终锤（09-26 21:48 实机终验闭环）**：alpha03 `toShape()` 桌面端真 bug——三后端（Xvfb 软渲染 / 实机 GPU direct / 实机 SOFTWARE）死亡名单完全一致；待用户拍板 toPath 规避改造（§4.1）
 
 ---
 
@@ -34,13 +35,13 @@ PoC 样张（`ExpressivePoc.kt`）无头截图：窗口上半部（内容前段�
 
 1. **诱因**：`RoundedPolygon.toShape()`（material3 1.12.0-alpha03 desktop，`MaterialShapesKt`）作为 `background(shape)` / ShapeModifier+outline 路径绘制时，在软件渲染 fallback 下触发大面积绘制丢失——该 op 自身不渲染，且与其同层/同帧的前序部分组件一并丢失（丢失集合与组件树结构相关，边界案例：最后一个 toShape 后的 Text 幸存）。
 2. **数据层无辜**：同一 polygon 经 `toPath()` 取路径后 `drawPath` 渲染正常（pathCanvas 实验）。
-3. **环境条件**：仅见于无 GPU/GLX 的无头环境（Xvfb → Skiko software fallback）；有 GPU 的实机（direct 路径）预期不受影响，**待用户实机终验确认**。
+3. **环境条件（实机终验已闭环，21:48）**：三后端死亡名单完全一致——云端 Xvfb 软渲染 fallback / 用户实机 GPU direct / 用户实机 `SKIKO_RENDER_API=SOFTWARE`，四图（poc_e0 + 实机三图）8 个内容条带逐对位 ±5px（DPI 级吻合），连 `circle-ish` 标签残迹（~8px 文字条带，主色 onSurfaceVariant）都同位同色。**与渲染后端彻底无关，非无头伪影**。附注：实机两张自动截图含 AWT 弹窗「Can't create an ImageOutputStream!」（`C:\temp` 目录不存在致 `ImageIO.write` 失败，弹窗本身是 AWT 层渲染，反证 Compose 场景外渲染正常；弹窗入图亦证明截图时刻 ≥3s 稳态，时序变量天然排除）。
 4. **影响面切割干净**：与 010 自绘三态（C 区）、Expressive 动画组件（LoadingIndicator/Wavy）、MotionScheme 双基座融合全部无关——这些在 noshape 实验中全绿。**PoC 核心结论（C 区三态×双基座融合）不受本问题阻塞**，形状库仅影响 PoC 展示区的完整性。
 
 ## 4. 决策与建议
 
 1. **PoC 形状区规避方案（已验证可行，暂缓实施）**：形状展示改用 `toPath()` + `Canvas.drawPath` 绘制，绕开 `toShape()`。改造量小（ShapeGallery 一个函数）。**时序采纳匠人意见：样张包保留 toShape 原样先行实机终验**——实机正常则无头伪影坐实（toShape 可留用，规避改造仅在「确认真 bug 且需要无头产物」时做）；实机同样丢失则 alpha03 桌面端真 bug 实锤（走规避 + 上游 issue）。
-2. **实机终验**：用户 Windows 实机（GPU/direct 路径）跑一次 PoC——若形状正常，说明为纯无头环境伪影；若同样丢失，则为 alpha03 桌面端真 bug，需规避至上游修复。
+2. **实机终验（已执行，判定落锤）**：用户 Windows 实机三图（手动稳态截图 / GPU direct / 强制 SOFTWARE）与无头死亡名单完全一致——§4.1 预设决策条件达成：**alpha03 桌面端真 bug 实锤**，走规避 + 上游 issue。证据归档 `shared/poc-final-pack-20260926/poc-machine-{manual,gpu,soft}.png`。
 3. **上游 issue 素材已备**：本报告实验矩阵 + 最小复现（poly3 单体窗口）可直接用于向 jetbrains-compose / material3 报 issue。
 4. **设计规范 v0 无影响**：形状库的轮廓语言（B 区观察目标）经 toPath 依旧可得，品牌自绘借用路径不受阻。
 
@@ -51,6 +52,7 @@ PoC 样张（`ExpressivePoc.kt`）无头截图：窗口上半部（内容前段�
 - `poc_probe_noanim.png` / `poc_probe_noshape.png`（组件二分，后者全绿）
 - `poc_probe_shapeRows.png` / `poc_probe_poly3.png` / `poc_probe_poly12.png` / `poc_probe_poly16.png`（逐形状/单体）
 - `poc_probe_pathCanvas.png`（toPath 对照，三角正常）
+- 实机终验三图（归档 `shared/poc-final-pack-20260926/`）：`poc-machine-manual.png`（用户手动稳态截图）/ `poc-machine-gpu.png`（GPU direct 自动截图，含 ImageOutputStream 弹窗）/ `poc-machine-soft.png`（强制 SOFTWARE 自动截图，同弹窗）——三图死亡名单与无头完全一致
 
 ## 6. 诊断资产（随本报告一并交付走查）
 
