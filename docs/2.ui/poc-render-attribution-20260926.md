@@ -15,7 +15,7 @@ PoC 样张（`ExpressivePoc.kt`）无头截图：窗口上半部（内容前段�
 - 死：PocHeader（纯文本）、A 区双卡（border/Button/动画组件/文本全无）、B 区 SectionLabel、7 个形状 Box、前 6 个形状标签
 - 活：ShapeGallery 最后一个标签 `circle-ish`、C 区 010 三态矩阵全部、尾注
 
-## 2. 实验矩阵（单变量，探针 ExpressiveProbe.kt，`runExpressiveProbe` task）
+## 2. 实验矩阵（单变量，探针 ExpressiveProbe.kt，`runExpressiveProbe` task；共 10 行，探针 18 变体全覆盖归因链）
 
 | 实验 | 变量 | 结果 | 结论 |
 |---|---|---|---|
@@ -26,6 +26,8 @@ PoC 样张（`ExpressivePoc.kt`）无头截图：窗口上半部（内容前段�
 | noshape | 去 ShapeGallery，保留动画组件 | **全部渲染**（Header/A 卡/Button/Loading/Wavy/B 标签/C 区/footer 全绿） | **诱因锁定 ShapeGallery** |
 | shapeRows | 7 形状垂直排列（仅形状+标题+footer） | 7 个 Box 全灭、前 6 标签灭、`circle-ish(16,0.60)` 标签与 footer 活 | 模式完整复刻样张 |
 | poly3/poly4/poly5/poly6/poly8/poly12/poly16 | 单形状居中（96dp） | 全部无形状块（仅 surface 底色） | **无参数豁免：顶点数 3~16、rounding 0.25~0.60 全灭** |
+| poly3z / poly16z / rectShape | rounding=0 变体：(3,0f) / (16,0f) / (4,0f) 单体 | 全部无形状块 | **rounding=0 不豁免**（含完全无圆角的退化方形） |
+| singleLoading | 单 `LoadingIndicator` 居中 | 紫色 blob 动画形态正常渲染 | 动画组件无辜的独立实证（Expressive 标志 blob 形态完好） |
 | pathCanvas | 同一 `RoundedPolygon(3,0.25)` 改走 `toPath()` + `Canvas.drawPath` | **三角正常渲染**，标题/说明/footer 全活 | **数据层无辜，问题在 `toShape()` 绘制路径** |
 
 ## 3. 归因结论
@@ -37,7 +39,7 @@ PoC 样张（`ExpressivePoc.kt`）无头截图：窗口上半部（内容前段�
 
 ## 4. 决策与建议
 
-1. **PoC 形状区规避方案（已验证可行）**：形状展示改用 `toPath()` + `Canvas.drawPath` 绘制，绕开 `toShape()`。改造量小（ShapeGallery 一个函数）。
+1. **PoC 形状区规避方案（已验证可行，暂缓实施）**：形状展示改用 `toPath()` + `Canvas.drawPath` 绘制，绕开 `toShape()`。改造量小（ShapeGallery 一个函数）。**时序采纳匠人意见：样张包保留 toShape 原样先行实机终验**——实机正常则无头伪影坐实（toShape 可留用，规避改造仅在「确认真 bug 且需要无头产物」时做）；实机同样丢失则 alpha03 桌面端真 bug 实锤（走规避 + 上游 issue）。
 2. **实机终验**：用户 Windows 实机（GPU/direct 路径）跑一次 PoC——若形状正常，说明为纯无头环境伪影；若同样丢失，则为 alpha03 桌面端真 bug，需规避至上游修复。
 3. **上游 issue 素材已备**：本报告实验矩阵 + 最小复现（poly3 单体窗口）可直接用于向 jetbrains-compose / material3 报 issue。
 4. **设计规范 v0 无影响**：形状库的轮廓语言（B 区观察目标）经 toPath 依旧可得，品牌自绘借用路径不受阻。

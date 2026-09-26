@@ -55,12 +55,20 @@ import javax.imageio.ImageIO
  * 唯一幸存者为 ShapeGallery 最后一枚文本标签（circle-ish）。
  * 本探针按单变量原则拆分变体，定位「位置性 vs 组件性 vs 顺序性」：
  *
- * --probe headeronly  窗口顶部仅两行纯文本 → 文本是否也会死
- * --probe bottomstack 完整 PocRoot 内容贴底排列 → 死区跟随位置还是内容
- * --probe noanim      完整布局去掉 Loading/Wavy 动画组件 → 动画组件嫌疑
- * --probe noshape     完整布局去掉 ShapeGallery → 形状库嫌疑
- * --probe singleLoading 窗口中央单个 LoadingIndicator → 最小复现
- * --probe singleText  窗口中央单个 Text → 对照
+ * 基础对照：
+ * --probe headeronly    窗口顶部仅两行纯文本 → 文本是否也会死
+ * --probe bottomstack   完整样张内容贴底排列 → 死区跟随位置还是内容
+ * --probe noanim        完整布局去掉 Loading/Wavy 动画组件 → 动画组件嫌疑
+ * --probe noshape       完整布局去掉 ShapeGallery → 形状库嫌疑
+ * 最小复现：
+ * --probe singleLoading 窗口中央单个 LoadingIndicator → 动画组件无辜实证
+ * --probe singleText    窗口中央单个 Text → 对照
+ * 形状逐个（toShape 路径）：
+ * --probe shapeRows     7 形状垂直排列 → 逐个死活
+ * --probe poly3/4/5/6/8/12/16  单形状居中 96dp（rounding 同样张）
+ * --probe poly3z/poly16z/rectShape  rounding=0 变体（(3,0f)/(16,0f)/(4,0f)）→ 无豁免验证
+ * 规避对照（数据层）：
+ * --probe pathCanvas    同 poly(3,0.25) 走 toPath+Canvas.drawPath → 数据层无辜实证
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun main(args: Array<String>) = application {
