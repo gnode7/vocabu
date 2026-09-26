@@ -1,5 +1,6 @@
 package cn.vocabu.poc
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +25,7 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.toShape
+import androidx.compose.material3.toPath
 import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.compose.runtime.Composable
@@ -32,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
@@ -203,7 +205,11 @@ private fun MotionSchemeDemo(motionScheme: MotionScheme) {
 private fun ShapeGallery() {
     // 兼容矩阵实测：CMP 独立火车 material3 1.12.0-alpha03 的 MaterialShapes.Companion
     // 形状常量全部 internal，第三方不可引用；公有入口仅 MaterialShapesKt.toShape/toPath 桥接。
-    // 故此处用 graphics-shapes 公有构造器自建形状，验证 toShape 桥接链路。
+    // 故此处用 graphics-shapes 公有构造器自建形状，验证桥接链路。
+    // 09-26 规避改造（实机终验三后端同丢拍板）：toShape() 桌面端触发大面积绘制丢失
+    // （归因报告 docs/2.ui/poc-render-attribution-20260926.md §4.2 + poc-final-pack 四图），
+    // 形状改走同一份 poly 数据的 toPath + Canvas.drawPath（探针 pathCanvas 已验证全绿）。
+    // poly 数据不动；上游修复后可回退 background(color, polygon.toShape()) 原样。
     fun poly(n: Int, rounding: Float) = RoundedPolygon(n, 50f, rounding = CornerRounding(rounding))
     val shapes = listOf(
         "triangle" to poly(3, 0.25f),
@@ -217,11 +223,13 @@ private fun ShapeGallery() {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         shapes.forEach { (name, polygon) ->
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, polygon.toShape()),
-                )
+                val path = polygon.toPath()
+                val fillColor = MaterialTheme.colorScheme.primaryContainer
+                Canvas(modifier = Modifier.size(64.dp)) {
+                    scale(size.width / 100f, size.height / 100f) {
+                        drawPath(path, fillColor)
+                    }
+                }
                 Text(name, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

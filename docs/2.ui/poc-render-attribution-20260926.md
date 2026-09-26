@@ -59,3 +59,26 @@ PoC 样张（`ExpressivePoc.kt`）无头截图：窗口上半部（内容前段�
 - `app/desktopApp/src/main/kotlin/cn/vocabu/poc/ExpressiveProbe.kt`：探针（--probe 变体开关），诊断专用，不进样张评审
 - `app/desktopApp/build.gradle.kts`：新增 `runExpressiveProbe` task（与既有 `runExpressivePoc` 同构；-PpocProbe/-PpocShot/-PpocDisplay/-PpocX11Lib）
 - 复跑命令：`./gradlew :app:desktopApp:runExpressiveProbe -PpocShot=/tmp/x.png -PpocDisplay=:98 -PpocX11Lib=/tmp/x11lib/usr/lib/x86_64-linux-gnu -PpocProbe=<variant>`
+
+## §4.3 规避执行记录（09-26 21:58，实机终验三后端拍板后执行）
+
+实机终验与云端死亡名单 pixel 级一致（三渲染后端：Xvfb 软渲染 / 实机 GPU 直连 / 实机
+SKIKO SOFTWARE），按 §4.1 预设决策链执行规避改造：
+
+**改动**：`ShapeGallery` 单函数——`Box.background(color, polygon.toShape())` →
+`Canvas { scale(size/100f) { drawPath(polygon.toPath(), color) } }`（探针 pathCanvas
+已验证路径）；7 份 poly 数据原样不动；`toShape` import 清除。回退方式：恢复
+`background(color, polygon.toShape())` 原样即回到触发态（供上游修复后对照）。
+
+**云端复验**（Xvfb :98 自动截图 `poc-fixed.png`，连通域 + 行密度像素验收）：
+- **7 形状全出**：连通域 7 块，x 起点等差分布（64dp 形状 + 12dp 间距），面积
+  1284→3102px² 随边数单调递增（triangle→circle-ish，几何正确非糊块）
+- **死亡名单清零**：顶部 y0-400 内容 38164px（改前 0），PocHeader / A 区双卡
+  （y116-352 行密度 92%）/ B 区栏目标签全部回归
+- **背景 token 副作用确认**：死亡模式窗口背景为 #EADDFF（恰为 primaryContainer
+  色值），规避后恢复 #FFFEF7（默认 light surface 值）——toShape bug 影响面含
+  主题背景层，纯事实记录不猜机制
+- **C 区三态矩阵 / 尾注无回归**（同位同密度）
+
+后端无关已证（三路一致），云端绿即全平台绿，实机复验免除。规避后样张 = PoC 通过
+形态（B 区轮廓语言经 toPath 可得，核心结论不动），转正与《设计规范 v0》推进解锁。
