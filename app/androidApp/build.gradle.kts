@@ -15,6 +15,8 @@ dependencies {
 
     implementation(libs.androidx.activity.compose)
 
+    implementation(libs.compose.material3) // CMP-10860 探针选择页直引（shared 为 implementation 不传递；与 desktopApp PoC 同例）
+
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
 }

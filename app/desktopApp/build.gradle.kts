@@ -83,3 +83,23 @@ tasks.register<JavaExec>("runExpressiveProbe") {
         environment("DISPLAY", project.property("pocDisplay").toString())
     }
 }
+
+// CMP-10860 上游互动探针（诊断专用）：--PprobePage=P1|P2|P3 单变体；--PpocShot=/path 截图退出
+tasks.register<JavaExec>("runCmp10860Probe") {
+    group = "compose desktop"
+    description = "Run the CMP-10860 Android-comparison probe"
+    mainClass.set("cn.vocabu.probe.Cmp10860ProbeDesktopKt")
+    classpath = sourceSets["main"].runtimeClasspath
+    if (project.hasProperty("probePage")) {
+        args("--page", project.property("probePage").toString())
+    }
+    if (project.hasProperty("pocShot")) {
+        args("--screenshot", project.property("pocShot").toString())
+    }
+    if (project.hasProperty("pocX11Lib")) {
+        environment("LD_LIBRARY_PATH", project.property("pocX11Lib").toString())
+    }
+    if (project.hasProperty("pocDisplay")) {
+        environment("DISPLAY", project.property("pocDisplay").toString())
+    }
+}

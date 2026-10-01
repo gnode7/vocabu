@@ -17,6 +17,20 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- CMP-10860 探针入口：独立 LAUNCHER 双图标，主 App 零侵入 -->
+        <activity
+                android:exported="true"
+                android:name=".Cmp10860ProbeActivity"
+                android:label="Vocabu Probe">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <activity
+                android:exported="false"
+                android:name=".Cmp10860ProbeVariantActivity"/>
     </application>
 
 </manifest>

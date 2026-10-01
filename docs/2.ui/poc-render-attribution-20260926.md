@@ -76,7 +76,8 @@ SKIKO SOFTWARE），按 §4.1 预设决策链执行规避改造：
 - **死亡名单清零**：顶部 y0-400 内容 38164px（改前 0），PocHeader / A 区双卡
   （y116-352 行密度 92%）/ B 区栏目标签全部回归
 - **背景 token 副作用确认**：死亡模式窗口背景为 #EADDFF（恰为 primaryContainer
-  色值），规避后恢复 #FFFEF7（默认 light surface 值）——toShape bug 影响面含
+  色值），规避后恢复 #FEF7FF（默认 light surface 值；本行原记 #FFFEF7 系笔误，
+  10-01 CMP-10860 探针运行时 hex 直读勘正）——toShape bug 影响面含
   主题背景层，纯事实记录不猜机制
 - **C 区三态矩阵 / 尾注无回归**（同位同密度）
 
@@ -91,7 +92,8 @@ BUILD + `runExpressivePoc --screenshot` 复跑，产出 `poc-fixed-verify-jiangr
 - 17 条内容带与 §4.3 自报逐一对位（y=31~783 全结构回归）
 - B 区形状行三水平扫描（y=400/415/430）均 **7 段**，截线宽度随边数单调增
   （y=415 行：40→63px）——7 形状几何正确独立证实
-- 背景 #FFFEF7 独立证实（死亡四图 #EADDFF）——§4.3 背景副作用双源确认
+- 背景 surface 色独立证实（死亡四图 #EADDFF）——§4.3 背景副作用双源确认
+  （当时目检记 #FFFEF7，10-01 探针运行时 hex 直读勘正为 #FEF7FF）
 
 **代码走查**：diff 2 文件单函数零侵入；`toShape` import 清除（`toPath`/`Canvas`/
 `scale` 替换）；7 份 poly 数据原样；fillColor 提出 lambda 外（Canvas 内非

@@ -64,6 +64,7 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
+            implementation(libs.androidx.graphics.shapes) // CMP-10860 探针：RoundedPolygon 显式声明，勿靠 material3 传递解析
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
         }
